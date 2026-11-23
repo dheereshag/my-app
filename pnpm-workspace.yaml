@@ -8,3 +8,14 @@ overrides:
 peerDependencyRules:
   allowedVersions:
     vite: "*"
+permissions:
+  void:
+    skills: [migrate-vite-cloudflare-to-void, void]
+skills:
+  dirs:
+    - .agent/skills
+    - .agents/skills
+    - .claude/skills
+    - .cursor/skills
+    - .gemini/skills
+    - .github/skills
