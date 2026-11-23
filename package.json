@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
+    "test": "vp test",
     "preview": "vp preview",
     "type-check": "tsc --noEmit",
     "postinstall": "void prepare"
