@@ -2,6 +2,7 @@
   "name": "my-app",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.21.0",
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
