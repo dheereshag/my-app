@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "source": {},
+  "resolved": {
+    "account_id": "ae792d63fb6118270dd701f49aabe4e7",
+    "compatibility_date": "2026-02-24",
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "my-app-db",
+        "database_id": "63607b96-2780-4a1e-9c7a-157c8cd178bd",
+        "migrations_dir": "./db/migrations"
+      }
+    ],
+    "name": "my-app"
+  },
+  "text": "{\n  \"account_id\": \"ae792d63fb6118270dd701f49aabe4e7\",\n  \"compatibility_date\": \"2026-02-24\",\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"my-app-db\",\n      \"database_id\": \"63607b96-2780-4a1e-9c7a-157c8cd178bd\",\n      \"migrations_dir\": \"./db/migrations\"\n    }\n  ],\n  \"name\": \"my-app\"\n}\n"
+}
