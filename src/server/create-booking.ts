@@ -27,7 +27,8 @@ export type CreateBookingOutcome =
   | { readonly kind: "replayed"; readonly confirmation: BookingConfirmation }
   | { readonly kind: "idempotency_conflict" }
   | { readonly kind: "stock_conflict"; readonly issues: readonly StockIssue[] }
-  | { readonly kind: "promo_rejected"; readonly message: string };
+  | { readonly kind: "promo_rejected"; readonly message: string }
+  | { readonly kind: "event_closed"; readonly message: string };
 
 type StoredBooking = typeof bookings.$inferSelect;
 
@@ -59,9 +60,14 @@ function replayOutcome(existing: StoredBooking, requestHash: string): CreateBook
 }
 
 function rejectionOutcome(rejection: BookingRejection): CreateBookingOutcome {
-  return rejection.kind === "stock"
-    ? { kind: "stock_conflict", issues: rejection.issues }
-    : { kind: "promo_rejected", message: rejection.message };
+  switch (rejection.kind) {
+    case "stock":
+      return { kind: "stock_conflict", issues: rejection.issues };
+    case "promo":
+      return { kind: "promo_rejected", message: rejection.message };
+    case "event_closed":
+      return { kind: "event_closed", message: rejection.message };
+  }
 }
 
 function buildWrites(
@@ -114,6 +120,8 @@ function buildWrites(
         fullName: person.fullName,
         age: person.age,
         phone: person.phone,
+        attendanceDaysJson:
+          person.attendingDays === null ? null : JSON.stringify(person.attendingDays),
       }),
     );
   }

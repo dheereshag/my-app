@@ -68,6 +68,7 @@ export const attendees = sqliteTable(
     fullName: text("full_name").notNull(),
     age: integer("age").notNull(),
     phone: text("phone"),
+    attendanceDaysJson: text("attendance_days_json"),
   },
   (table) => [index("attendees_booking_id_idx").on(table.bookingId)],
 );

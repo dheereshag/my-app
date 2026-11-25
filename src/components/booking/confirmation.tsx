@@ -1,18 +1,11 @@
 import { CircleCheck, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemTitle,
-} from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { EVENT_METADATA, formatUsd } from "@/domain";
 import type { BookingConfirmation } from "@/server/confirmation";
 import { useBookingStore } from "@/store/booking-store";
 import { formatDays } from "./day-labels";
+import { ReceiptLines } from "./receipt-lines";
 
 const KIND_LABEL: Record<BookingConfirmation["attendees"][number]["kind"], string> = {
   adult: "Adult",
@@ -20,7 +13,13 @@ const KIND_LABEL: Record<BookingConfirmation["attendees"][number]["kind"], strin
   toddler: "Under 5",
 };
 
-export function Confirmation({ confirmation }: { readonly confirmation: BookingConfirmation }) {
+export function Confirmation({
+  confirmation,
+  allowNewBooking = true,
+}: {
+  readonly confirmation: BookingConfirmation;
+  readonly allowNewBooking?: boolean;
+}) {
   const startOver = useBookingStore((store) => store.startOver);
 
   return (
@@ -50,23 +49,7 @@ export function Confirmation({ confirmation }: { readonly confirmation: BookingC
         <h3 id="receipt-heading" className="font-heading text-2xl font-semibold">
           What you booked
         </h3>
-        <ItemGroup className="gap-1">
-          {confirmation.lines.map((line) => (
-            <Item key={line.sku} size="sm" className="items-start px-0">
-              <ItemContent>
-                <ItemTitle className="line-clamp-none">
-                  {line.label} × {line.quantity}
-                </ItemTitle>
-                {line.days.length > 0 ? (
-                  <ItemDescription className="line-clamp-none">
-                    {formatDays(line.days)}
-                  </ItemDescription>
-                ) : null}
-              </ItemContent>
-              <ItemActions className="tabular-nums">{formatUsd(line.subtotalCents)}</ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
+        <ReceiptLines lines={confirmation.lines} />
         <Separator />
         <dl className="flex flex-col gap-1.5">
           {confirmation.discountCents > 0 ? (
@@ -94,7 +77,8 @@ export function Confirmation({ confirmation }: { readonly confirmation: BookingC
               <li key={`${person.fullName}-${index}`}>
                 {person.fullName}{" "}
                 <span className="text-muted-foreground">
-                  ({KIND_LABEL[person.kind]}, age {person.age})
+                  ({KIND_LABEL[person.kind]}, age {person.age}
+                  {person.attendingDays?.length ? ` · ${formatDays(person.attendingDays)}` : ""})
                 </span>
               </li>
             ))}
@@ -107,9 +91,11 @@ export function Confirmation({ confirmation }: { readonly confirmation: BookingC
           <Printer aria-hidden="true" data-icon="inline-start" />
           Print or save
         </Button>
-        <Button type="button" className="h-11" onClick={startOver}>
-          Start a new booking
-        </Button>
+        {allowNewBooking ? (
+          <Button type="button" className="h-11" onClick={startOver}>
+            Start a new booking
+          </Button>
+        ) : null}
       </div>
     </div>
   );

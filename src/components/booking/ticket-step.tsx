@@ -25,7 +25,7 @@ interface TicketStepProps {
 
 export function TicketStep({ remaining, quote }: TicketStepProps) {
   const selection = useBookingStore((store) => store.selection);
-  const toddlerCount = useBookingStore((store) => store.attendees.toddlers.length);
+  const toddlers = useBookingStore((store) => store.attendees.toddlers);
   const submit = useBookingStore((store) => store.submit);
   const setSelection = useBookingStore((store) => store.setSelection);
   const setStep = useBookingStore((store) => store.setStep);
@@ -33,7 +33,7 @@ export function TicketStep({ remaining, quote }: TicketStepProps) {
 
   const errors = validateTickets(selection);
   const coveredDays = getCoveredFestivalDays(selection);
-  const limits = getExtraLimits(selection, toddlerCount);
+  const limits = getExtraLimits(selection, toddlers);
   const workshopDaysCovered = GARBA_WORKSHOP_DATES.filter((date) => coveredDays.includes(date));
 
   const stockIssues = quote.status === "ready" ? quote.quote.stockIssues : [];
@@ -88,48 +88,50 @@ export function TicketStep({ remaining, quote }: TicketStepProps) {
           </p>
         </div>
 
-        <DayTicketOption
-          sku="day_pass_adult"
-          line={selection.day_pass_adult}
-          dates={FESTIVAL_DATES}
-          remaining={remaining("day_pass_adult")}
-          error={errors["selection.day_pass_adult.days"]}
-          showError={showErrors}
-          onChange={(line) => setSelection({ day_pass_adult: line })}
-        />
-        <DayTicketOption
-          sku="day_pass_child"
-          line={selection.day_pass_child}
-          dates={FESTIVAL_DATES}
-          remaining={remaining("day_pass_child")}
-          error={errors["selection.day_pass_child.days"]}
-          showError={showErrors}
-          onChange={(line) => setSelection({ day_pass_child: line })}
-        />
-        <FlatTicketOption
-          sku="all_day_adult"
-          quantity={selection.all_day_adult.quantity}
-          remaining={remaining("all_day_adult")}
-          note="The days can't be changed."
-          onChange={(quantity) => setSelection({ all_day_adult: { quantity } })}
-        />
-        <FlatTicketOption
-          sku="all_day_child"
-          quantity={selection.all_day_child.quantity}
-          remaining={remaining("all_day_child")}
-          note="The days can't be changed."
-          onChange={(quantity) => setSelection({ all_day_child: { quantity } })}
-        />
-        <DayTicketOption
-          sku="family_pass"
-          line={selection.family_pass}
-          dates={FESTIVAL_DATES}
-          remaining={remaining("family_pass")}
-          note="One pass covers one day; choose several days for several passes."
-          error={errors["selection.family_pass.days"]}
-          showError={showErrors}
-          onChange={(line) => setSelection({ family_pass: line })}
-        />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <DayTicketOption
+            sku="day_pass_adult"
+            line={selection.day_pass_adult}
+            dates={FESTIVAL_DATES}
+            remaining={remaining("day_pass_adult")}
+            error={errors["selection.day_pass_adult.days"]}
+            showError={showErrors}
+            onChange={(line) => setSelection({ day_pass_adult: line })}
+          />
+          <DayTicketOption
+            sku="day_pass_child"
+            line={selection.day_pass_child}
+            dates={FESTIVAL_DATES}
+            remaining={remaining("day_pass_child")}
+            error={errors["selection.day_pass_child.days"]}
+            showError={showErrors}
+            onChange={(line) => setSelection({ day_pass_child: line })}
+          />
+          <FlatTicketOption
+            sku="all_day_adult"
+            quantity={selection.all_day_adult.quantity}
+            remaining={remaining("all_day_adult")}
+            note="Covers all five days."
+            onChange={(quantity) => setSelection({ all_day_adult: { quantity } })}
+          />
+          <FlatTicketOption
+            sku="all_day_child"
+            quantity={selection.all_day_child.quantity}
+            remaining={remaining("all_day_child")}
+            note="Covers all five days."
+            onChange={(quantity) => setSelection({ all_day_child: { quantity } })}
+          />
+          <DayTicketOption
+            sku="family_pass"
+            line={selection.family_pass}
+            dates={FESTIVAL_DATES}
+            remaining={remaining("family_pass")}
+            note="Each pass covers one day. Select multiple days to buy one pass per day."
+            error={errors["selection.family_pass.days"]}
+            showError={showErrors}
+            onChange={(line) => setSelection({ family_pass: line })}
+          />
+        </div>
         {errors.selection && showErrors ? (
           <p role="alert" className="text-sm text-destructive">
             {errors.selection}
@@ -147,45 +149,47 @@ export function TicketStep({ remaining, quote }: TicketStepProps) {
           </p>
         </div>
 
-        <FlatTicketOption
-          sku="dandiya_sticks"
-          quantity={selection.dandiya_sticks.quantity}
-          remaining={remaining("dandiya_sticks")}
-          maxQuantity={DANDIYA_MAX_PER_ORDER}
-          onChange={(quantity) => setSelection({ dandiya_sticks: { quantity } })}
-        />
-        <DayTicketOption
-          sku="dinner_plate"
-          line={selection.dinner_plate}
-          dates={FESTIVAL_DATES}
-          enabledDates={coveredDays}
-          remaining={remaining("dinner_plate")}
-          maxQuantity={limits.dinnerPlates}
-          blockedReason={
-            coveredDays.length === 0
-              ? "Choose an entry ticket above first. Dinner is per person, per day."
-              : undefined
-          }
-          error={errors["selection.dinner_plate.days"]}
-          showError={showErrors}
-          onChange={(line) => setSelection({ dinner_plate: line })}
-        />
-        <DayTicketOption
-          sku="garba_workshop"
-          line={selection.garba_workshop}
-          dates={GARBA_WORKSHOP_DATES}
-          enabledDates={coveredDays}
-          remaining={remaining("garba_workshop")}
-          maxQuantity={limits.workshopPlaces}
-          blockedReason={
-            workshopDaysCovered.length === 0
-              ? "Choose an entry ticket for Nov 11 or Nov 13 first. The workshop runs on those two days only."
-              : undefined
-          }
-          error={errors["selection.garba_workshop.days"]}
-          showError={showErrors}
-          onChange={(line) => setSelection({ garba_workshop: line })}
-        />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FlatTicketOption
+            sku="dandiya_sticks"
+            quantity={selection.dandiya_sticks.quantity}
+            remaining={remaining("dandiya_sticks")}
+            maxQuantity={DANDIYA_MAX_PER_ORDER}
+            onChange={(quantity) => setSelection({ dandiya_sticks: { quantity } })}
+          />
+          <DayTicketOption
+            sku="dinner_plate"
+            line={selection.dinner_plate}
+            dates={FESTIVAL_DATES}
+            enabledDates={coveredDays}
+            remaining={remaining("dinner_plate")}
+            maxQuantity={limits.dinnerPlates}
+            blockedReason={
+              coveredDays.length === 0
+                ? "Choose an entry ticket above first. Dinner is per person, per day."
+                : undefined
+            }
+            error={errors["selection.dinner_plate.days"]}
+            showError={showErrors}
+            onChange={(line) => setSelection({ dinner_plate: line })}
+          />
+          <DayTicketOption
+            sku="garba_workshop"
+            line={selection.garba_workshop}
+            dates={GARBA_WORKSHOP_DATES}
+            enabledDates={coveredDays}
+            remaining={remaining("garba_workshop")}
+            maxQuantity={limits.workshopPlaces}
+            blockedReason={
+              workshopDaysCovered.length === 0
+                ? "Choose an entry ticket for Nov 11 or Nov 13 first. The workshop runs on those two days only."
+                : undefined
+            }
+            error={errors["selection.garba_workshop.days"]}
+            showError={showErrors}
+            onChange={(line) => setSelection({ garba_workshop: line })}
+          />
+        </div>
       </section>
 
       <PromoField quote={quote} />

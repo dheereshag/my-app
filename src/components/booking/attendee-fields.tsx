@@ -1,15 +1,18 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
+import { FieldError, FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
   ADULT_MIN_AGE,
   CHILD_MAX_AGE,
   CHILD_MIN_AGE,
+  FESTIVAL_DATES,
   MAX_TODDLERS_PER_BOOKING,
   TODDLER_MAX_AGE,
+  getCoveredFestivalDays,
 } from "@/domain";
 import { useBookingStore } from "@/store/booking-store";
 import type { FieldErrors } from "@/store/booking-request";
+import { DayPicker } from "./day-picker";
 import { AgeField, TextField } from "./fields";
 
 interface AttendeeFieldsProps {
@@ -30,12 +33,14 @@ function PersonCard({ legend, children }: { legend: string; children: React.Reac
 
 /** Adults (12+), children (5-11) and under-5s. Counts come from the tickets, never typed in. */
 export function AttendeeFields({ errors, showErrors }: AttendeeFieldsProps) {
+  const selection = useBookingStore((store) => store.selection);
   const attendees = useBookingStore((store) => store.attendees);
   const updateAdult = useBookingStore((store) => store.updateAdult);
   const updateChild = useBookingStore((store) => store.updateChild);
   const addToddler = useBookingStore((store) => store.addToddler);
   const updateToddler = useBookingStore((store) => store.updateToddler);
   const removeToddler = useBookingStore((store) => store.removeToddler);
+  const coveredDays = getCoveredFestivalDays(selection);
 
   return (
     <div className="flex flex-col gap-8">
@@ -148,6 +153,26 @@ export function AttendeeFields({ errors, showErrors }: AttendeeFieldsProps) {
               showError={showErrors}
               onChange={(age) => updateToddler(toddler.id, { age })}
             />
+            <div className="flex flex-col gap-2">
+              <p
+                id={`toddler-${toddler.id}-days-label`}
+                className="text-sm font-medium leading-none"
+              >
+                Which days will this child attend?
+              </p>
+              <DayPicker
+                label={`Attendance days for ${toddler.fullName || `child ${index + 1}`}`}
+                dates={FESTIVAL_DATES}
+                enabledDates={coveredDays}
+                value={toddler.attendingDays}
+                invalid={showErrors && Boolean(errors[`attendees.toddlers.${index}.attendingDays`])}
+                describedBy={`toddler-${toddler.id}-days-label`}
+                onChange={(attendingDays) => updateToddler(toddler.id, { attendingDays })}
+              />
+              {showErrors && errors[`attendees.toddlers.${index}.attendingDays`] ? (
+                <FieldError>{errors[`attendees.toddlers.${index}.attendingDays`]}</FieldError>
+              ) : null}
+            </div>
             <Button
               type="button"
               variant="outline"

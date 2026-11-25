@@ -16,6 +16,7 @@ The hard part of this problem is not the screens. It is the **rules** — and ma
 | Location | Radha Krishna Temple, Allen, Texas |
 | Festival dates | **Tue 10 Nov 2026 → Sat 14 Nov 2026** (5 days) |
 | Currency | USD only |
+| Booking closes | Midnight after the final festival day (Nov 15, 2026, Central Time) |
 
 ### Colour theme
 
@@ -102,6 +103,7 @@ A booking is made by one person, on behalf of a group.
 - We need enough detail about the **person booking** to contact them and to send their confirmation.
 - We need enough detail about **everyone else in the group** for the volunteers on the door to check them in.
 - The details we need for a child are not the same as the details we need for an adult. Think about which fields genuinely make sense for a nine-year-old.
+- For children under 5, collect which festival dates they will attend. They are free and need no entry ticket, but their dates are needed to validate per-day dinner quantities.
 
 The number of people we collect details for must always match the number of tickets being bought, and it must stay matched as the person changes their mind — which they will, several times, before they pay.
 
@@ -143,14 +145,14 @@ Whatever you build, please make sure of these four things:
 3. **Stock is real.** A completed booking reduces what is available, and that reduction survives. Two people booking the last two workshop places at the same moment must not both succeed.
 4. **The contract is documented.** A short table of your endpoints and their shapes in the README is fine. We want to see that you can define an interface, not just consume one.
 
-A database is not required, but see section 7 rule 6 before you decide how to store things.
+A database is not required, but stock and completed bookings must persist across requests. Requirement 3 above also requires concurrent stock updates to be safe.
 
 ### Payment
 
 Take the amount from your own server and show a payment step. A simulated payment is perfectly acceptable — a real Stripe **test mode** payment is a nice extra if you have the time. Never commit real keys.
 
 
-## 10. What you should be looking at
+## 7. What you should be looking at
 
 Roughly in order of what matters most to us:
 

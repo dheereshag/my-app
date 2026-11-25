@@ -23,6 +23,7 @@ import {
   getCoveredFestivalDays,
   getExpectedOtherAdultCount,
   getRequiredAttendeeCounts,
+  getRequiredAttendeeCountsForDay,
 } from "./pricing";
 
 function countDigits(value: string): number {
@@ -258,6 +259,9 @@ export const ToddlerAttendeeSchema = z.strictObject({
   id: AttendeeIdSchema,
   fullName: FullNameSchema,
   age: ToddlerAgeSchema,
+  attendingDays: createUniqueDaysSchema(FestivalDateSchema).refine((days) => days.length > 0, {
+    error: "Choose at least one festival day for this child.",
+  }),
 });
 
 export const AttendeeGroupSchema = z.strictObject({
@@ -338,21 +342,49 @@ export const CreateBookingRequestSchema = z
       });
     }
 
-    const ticketedPeople = requiredAdults + requiredChildren;
-    const dinnerEaters = ticketedPeople + booking.attendees.toddlers.length;
-    if (booking.selection.dinner_plate.quantity > dinnerEaters) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["selection", "dinner_plate", "quantity"],
-        message: `Dinner Plate is per person per day: you have ${dinnerEaters} people in this booking but asked for ${booking.selection.dinner_plate.quantity} plates.`,
-      });
+    const coveredDays = new Set(getCoveredFestivalDays(booking.selection));
+    booking.attendees.toddlers.forEach((toddler, index) => {
+      const uncoveredDays = toddler.attendingDays.filter((day) => !coveredDays.has(day));
+      if (uncoveredDays.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["attendees", "toddlers", index, "attendingDays"],
+          message: `A child under 5 needs an accompanying entry ticket for ${uncoveredDays.join(", ")}.`,
+        });
+      }
+    });
+
+    for (const day of booking.selection.dinner_plate.days) {
+      const { adults, children } = getRequiredAttendeeCountsForDay(booking.selection, day);
+      const toddlerCount = booking.attendees.toddlers.filter((toddler) =>
+        toddler.attendingDays.includes(day),
+      ).length;
+      const dinnerEaters = adults + children + toddlerCount;
+      if (booking.selection.dinner_plate.quantity > dinnerEaters) {
+        const attendance =
+          dinnerEaters === 1 ? "1 person attends" : `${dinnerEaters} people attend`;
+        ctx.addIssue({
+          code: "custom",
+          path: ["selection", "dinner_plate", "quantity"],
+          message: `Dinner Plate is per person, per day: ${attendance} on ${day}, but ${booking.selection.dinner_plate.quantity} plates were requested.`,
+        });
+      }
     }
-    if (booking.selection.garba_workshop.quantity > ticketedPeople) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["selection", "garba_workshop", "quantity"],
-        message: `Garba Workshop is one place per person: you have ${ticketedPeople} ticketed people (ages 5+) but asked for ${booking.selection.garba_workshop.quantity} places.`,
-      });
+
+    for (const day of booking.selection.garba_workshop.days) {
+      const { adults, children } = getRequiredAttendeeCountsForDay(booking.selection, day);
+      const ticketedPeople = adults + children;
+      if (booking.selection.garba_workshop.quantity > ticketedPeople) {
+        const attendance =
+          ticketedPeople === 1
+            ? "1 ticketed person attends"
+            : `${ticketedPeople} ticketed people attend`;
+        ctx.addIssue({
+          code: "custom",
+          path: ["selection", "garba_workshop", "quantity"],
+          message: `Garba Workshop is one place per person: ${attendance} on ${day}, but ${booking.selection.garba_workshop.quantity} places were requested.`,
+        });
+      }
     }
   });
 

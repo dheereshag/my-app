@@ -31,11 +31,11 @@ All bodies are JSON. Money is always integer cents. Validation failures use Void
 `400 { "error": "Validation failed", "issues": [{ "slot": "body", "issues": [{ "message", "path" }] }] }`.
 Other errors use `{ "error", "code", "message", ... }`.
 
-| Method and path         | Purpose                                                           | Success                                                                                                              | Errors                                                                                   |
-| ----------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET /api/availability` | Units left per SKU (display only)                                 | `200 { items: [{ sku, remaining }] }`                                                                                |                                                                                          |
-| `POST /api/quote`       | The price of a selection, with promo and stock checked            | `200` [Quote](#quote)                                                                                                | `400` validation                                                                         |
-| `POST /api/bookings`    | Re-validate everything, reserve stock, store the booking, confirm | `201` [Confirmation](#confirmation); `200` same body if the idempotency key was already used by an identical request | `400` validation, `409 stock_conflict`, `409 idempotency_conflict`, `422 promo_rejected` |
+| Method and path         | Purpose                                                           | Success                                                                                                              | Errors                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GET /api/availability` | Units left per SKU (display only)                                 | `200 { items: [{ sku, remaining }] }`                                                                                |                                                                                                              |
+| `POST /api/quote`       | The price of a selection, with promo and stock checked            | `200` [Quote](#quote)                                                                                                | `400` validation                                                                                             |
+| `POST /api/bookings`    | Re-validate everything, reserve stock, store the booking, confirm | `201` [Confirmation](#confirmation); `200` same body if the idempotency key was already used by an identical request | `400` validation, `409 stock_conflict`, `409 idempotency_conflict`, `410 event_closed`, `422 promo_rejected` |
 
 ### Request bodies
 
@@ -64,7 +64,7 @@ Other errors use `{ "error", "code", "message", ... }`.
   "attendees": {
     "adults":   [{ "id", "fullName", "age", "phone"? }],  // everyone aged 12+ except the booker
     "children": [{ "id", "fullName", "age" }],            // ages 5 to 11
-    "toddlers": [{ "id", "fullName", "age" }]             // ages 0 to 4, free, no ticket
+    "toddlers": [{ "id", "fullName", "age", "attendingDays": ["2026-11-11"] }] // ages 0 to 4, free, no ticket
   }
 }
 ```
@@ -93,7 +93,7 @@ Both schemas are strict: an unknown field (`totalCents`, `priceCents`, ...) is a
   "payment": { "method": "simulated", "status": "paid", "amountCents": 2700 },
   "booker": { "fullName", "email" },
   "lines": [ /* as in Quote */ ], "subtotalCents", "discountCents", "totalCents", "promoCode": "SEVA10" | null,
-  "attendees": [{ "kind": "adult" | "child" | "toddler", "fullName", "age" }]
+  "attendees": [{ "kind": "adult" | "child" | "toddler", "fullName", "age", "attendingDays": ["2026-11-11"] | null }]
 }
 ```
 
@@ -113,12 +113,12 @@ Both schemas are strict: an unknown field (`totalCents`, `priceCents`, ...) is a
 - **Percent discounts round half up in whole cents**, and the discount is split across lines by largest remainder so line discounts always add up to the total.
 - **Ages decide the ticket.** Adult attendees must be 12+, children on a child ticket 5 to 11, and under-5s are free and need no ticket. A 7-year-old cannot be placed on an adult ticket, and a 12-year-old cannot be placed on a child ticket; the message says which ticket fits. Ages must be whole numbers: text, negatives, fractions and absurd values are rejected, and the form ignores characters that cannot be part of a number.
 - **The booker** must be 18+ and may or may not come. If they come they take one of the adult places; the form then asks for one fewer other adult.
-- **Under-5s** are recorded for the door list, capped at 10 per booking, and count towards dinner but not the workshop.
-- **Extras follow the people.** Dinner plates cannot exceed the people in the booking, workshop places cannot exceed ticketed people (5+), and dinner and workshop days must be covered by an entry ticket. When someone removes a day or a ticket, the page drops the extras that no longer fit instead of leaving an invalid order.
+- **Under-5s** are recorded for the door list, capped at 10 per booking, and their attendance dates must be covered by entry tickets. They count towards dinner on those dates but not the workshop.
+- **Extras follow the people, per day.** Dinner plates cannot exceed the people attending on each selected date; workshop places cannot exceed ticketed people (5+) on each selected workshop date. The selected dates must be covered by entry tickets. When someone removes a day or a ticket, the page drops extras that no longer fit instead of leaving an invalid order.
 - **Stock is counted in person-days.** Day Pass, Family Pass and Dinner Plate stock is used up once per person per day. **Garba Workshop's 2 places are one shared pool** across Nov 11 and Nov 13.
 - **Family Pass** covers 2 adults and 2 children for one day; choosing several days buys one pass per day.
 - **Quantity caps:** 30 per ticket line and 20 pairs of Dandiya Sticks per booking.
-- **The clock is not used to reject festival dates.** Dates are fixed data; promo expiry takes an injected `now`, which is how the tests pin EXPIRED5.
+- **Bookings close at midnight after the final festival day (Nov 15, 2026, Central Time).** Festival dates are fixed data; promo expiry takes an injected `now`, which is how the tests pin EXPIRED5.
 - **Payment is simulated.** The page says so plainly and asks for no card details. The booking is real: stock is reduced and the confirmation is stored.
 - **Confirmation is shown on the page and saved to the session** so a refresh keeps it. No email is sent.
 
@@ -128,7 +128,7 @@ Sold out (All-Day Pass – Adult) is shown and disabled. Low stock (Garba Worksh
 
 ## Tests
 
-`pnpm test` runs 46 tests: the domain maths and schemas (`tests/domain.test.ts`), the server booking decisions with live-stock inputs (`tests/plan-booking.test.ts`: tampering, ages, sold out, workshop overruns, every promo code, quantity caps, duplicate ids) and the client rules and store (`tests/booking-draft.test.ts`: attendees stay matched to tickets, extras are pruned, double submit sends one request). The unit runner has no D1, so the atomic write is verified against the local D1 in `vp dev`.
+`pnpm test` covers the domain maths and schemas (`tests/domain.test.ts`), server booking decisions with live-stock inputs (`tests/plan-booking.test.ts`: tampering, ages, sold out, workshop overruns, every promo code, quantity caps, duplicate ids) and client rules and store (`tests/booking-draft.test.ts`: attendees stay matched to tickets, extras are pruned, double submit sends one request). The unit runner has no D1, so the atomic write is verified against the local D1 in `vp dev`.
 
 ## Known limits
 

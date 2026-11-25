@@ -15,6 +15,7 @@ export type BookingFailure =
   | { readonly reason: "promo"; readonly message: string }
   | { readonly reason: "invalid"; readonly message: string }
   | { readonly reason: "conflict"; readonly message: string }
+  | { readonly reason: "closed"; readonly message: string }
   | { readonly reason: "server"; readonly message: string };
 
 export type BookingResult =
@@ -55,6 +56,9 @@ function describeFailure(error: unknown): BookingFailure {
   }
   if (error.status === 422) {
     return { reason: "promo", message };
+  }
+  if (error.status === 410) {
+    return { reason: "closed", message };
   }
   if (error.status === 400) {
     return { reason: "invalid", message: "Some details need another look. Please review them." };

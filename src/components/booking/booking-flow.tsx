@@ -7,6 +7,7 @@ import type { AvailabilityItem } from "@/server/inventory";
 import { useBookingStore, type Step } from "@/store/booking-store";
 import { BookingStepper } from "./booking-stepper";
 import { Confirmation } from "./confirmation";
+import { EventClosed } from "./event-closed";
 import { GroupStep } from "./group-step";
 import { MobileSummaryBar } from "./mobile-summary-bar";
 import { OrderSummary } from "./order-summary";
@@ -22,8 +23,10 @@ const STEP_TITLE: Record<Step, string> = {
 
 export function BookingFlow({
   availability,
+  bookingClosed,
 }: {
   readonly availability: readonly AvailabilityItem[];
+  readonly bookingClosed: boolean;
 }) {
   const step = useBookingStore((store) => store.step);
   const confirmation = useBookingStore((store) => store.confirmation);
@@ -53,7 +56,11 @@ export function BookingFlow({
     }
   }, [step, stockConflict, refresh]);
 
-  const showSummary = step !== "confirmed";
+  if (bookingClosed && confirmation === null) {
+    return <EventClosed />;
+  }
+
+  const showSummary = !bookingClosed && step !== "confirmed";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -71,8 +78,9 @@ export function BookingFlow({
           </p>
           <h1 className="font-heading text-4xl font-semibold sm:text-5xl">{EVENT_METADATA.name}</h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
-            Book your family's tickets for {EVENT_METADATA.dateRangeLabel} in one go. Choose
-            tickets, tell us who is coming, and get your confirmation.
+            {bookingClosed
+              ? `This event has ended. Your booking for ${EVENT_METADATA.dateRangeLabel} is shown below.`
+              : `Book your family's tickets for ${EVENT_METADATA.dateRangeLabel} in one go. Choose tickets, tell us who is coming, and get your confirmation.`}
           </p>
         </div>
       </header>
@@ -94,7 +102,7 @@ export function BookingFlow({
             {step === "group" ? <GroupStep /> : null}
             {step === "review" ? <ReviewStep quote={quote} onRetryQuote={retry} /> : null}
             {step === "confirmed" && confirmation ? (
-              <Confirmation confirmation={confirmation} />
+              <Confirmation confirmation={confirmation} allowNewBooking={!bookingClosed} />
             ) : null}
           </div>
 

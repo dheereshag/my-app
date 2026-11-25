@@ -37,6 +37,7 @@ export const BookingConfirmationSchema = z.object({
       kind: z.enum(["adult", "child", "toddler"]),
       fullName: z.string(),
       age: z.int(),
+      attendingDays: z.array(FestivalDateSchema).nullable().default(null),
     }),
   ),
 });

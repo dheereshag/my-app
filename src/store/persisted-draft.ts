@@ -21,6 +21,9 @@ const PersonSchema = z.object({
   fullName: z.string(),
   age: z.number().optional(),
 });
+const ToddlerSchema = PersonSchema.extend({
+  attendingDays: z.array(FestivalDateSchema).default([]),
+});
 
 export const PersistedDraftSchema = z.object({
   selection: z.object({
@@ -47,7 +50,7 @@ export const PersistedDraftSchema = z.object({
   attendees: z.object({
     adults: z.array(PersonSchema.extend({ phone: z.string().optional() })),
     children: z.array(PersonSchema),
-    toddlers: z.array(PersonSchema),
+    toddlers: z.array(ToddlerSchema),
   }),
   idempotencyKey: z.string().min(1),
   confirmation: BookingConfirmationSchema.nullable(),

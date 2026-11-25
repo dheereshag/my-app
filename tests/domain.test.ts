@@ -33,8 +33,11 @@ import {
   getCoveredFestivalDays,
   getExpectedOtherAdultCount,
   getRequiredAttendeeCounts,
+  getRequiredAttendeeCountsForDay,
+  isEventBookingClosed,
   reconcileAttendees,
   resolveRequestPromoCode,
+  type AttendeeGroupDraft,
   type TicketSelection,
 } from "../src/domain";
 
@@ -89,6 +92,8 @@ describe("Catalog & Festival Constants", () => {
     expect(TODDLER_MAX_AGE).toBe(4);
     expect(MAX_AGE).toBe(120);
     expect(DANDIYA_MAX_PER_ORDER).toBe(20);
+    expect(isEventBookingClosed(new Date("2026-11-15T05:59:59.999Z"))).toBe(false);
+    expect(isEventBookingClosed(new Date("2026-11-15T06:00:00.000Z"))).toBe(true);
   });
 
   it("defines all 8 SKUs with exact integer-cent prices and initial stock", () => {
@@ -166,19 +171,34 @@ describe("Pure Formatting, Day Coverage, and Attendee Reconciliation", () => {
       adults: 4, // 2 day_pass_adult + 2 from family_pass
       children: 4, // 1 day_pass_child + 1 all_day_child + 2 from family_pass
     });
+    expect(getRequiredAttendeeCountsForDay(selection, "2026-11-10")).toEqual({
+      adults: 2,
+      children: 2,
+    });
+    expect(getRequiredAttendeeCountsForDay(selection, "2026-11-12")).toEqual({
+      adults: 2,
+      children: 3,
+    });
     expect(getExpectedOtherAdultCount(4, true)).toBe(3);
     expect(getExpectedOtherAdultCount(4, false)).toBe(4);
     expect(getExpectedOtherAdultCount(0, true)).toBe(0);
   });
 
   it("reconciles attendees purely while preserving filled fields and toddlers", () => {
-    const initial = {
+    const initial: AttendeeGroupDraft = {
       adults: [
         { id: "a1", fullName: "Rohan Patel", age: 36, phone: "4695550101" },
         { id: "a2", fullName: "Meera Patel", age: 33 },
       ],
       children: [{ id: "c1", fullName: "Diya Patel", age: 8 }],
-      toddlers: [{ id: "t1", fullName: "Kabir Patel", age: 2 }],
+      toddlers: [
+        {
+          id: "t1",
+          fullName: "Kabir Patel",
+          age: 2,
+          attendingDays: ["2026-11-11"],
+        },
+      ],
     };
 
     const expanded = reconcileAttendees(initial, 4, 2, { isAttendingAsAdult: true });
@@ -639,7 +659,14 @@ describe("Zod v4 Validation & Cross-Field Rules", () => {
           { id: "c1", fullName: "Riya Sharma", age: 7 },
           { id: "c2", fullName: "Aryan Sharma", age: 10 },
         ],
-        toddlers: [{ id: "t1", fullName: "Mira Sharma", age: 3 }],
+        toddlers: [
+          {
+            id: "t1",
+            fullName: "Mira Sharma",
+            age: 3,
+            attendingDays: ["2026-11-11"],
+          },
+        ],
       },
     };
 

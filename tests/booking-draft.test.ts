@@ -40,9 +40,9 @@ describe("updateSelection keeps a selection self-consistent", () => {
     const withTickets = updateSelection(
       base,
       { day_pass_adult: { quantity: 2, days: ["2026-11-11"] } },
-      0,
+      [],
     );
-    const cleared = updateSelection(withTickets, { day_pass_adult: { quantity: 0, days: [] } }, 0);
+    const cleared = updateSelection(withTickets, { day_pass_adult: { quantity: 0, days: [] } }, []);
     expect(cleared.day_pass_adult).toEqual({ quantity: 0, days: [] });
   });
 
@@ -54,12 +54,12 @@ describe("updateSelection keeps a selection self-consistent", () => {
         dinner_plate: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
         garba_workshop: { quantity: 1, days: ["2026-11-11"] },
       },
-      0,
+      [],
     );
     const narrowed = updateSelection(
       full,
       { day_pass_adult: { quantity: 2, days: ["2026-11-12"] } },
-      0,
+      [],
     );
     expect(narrowed.dinner_plate.days).toEqual(["2026-11-12"]);
     expect(narrowed.garba_workshop).toEqual({ quantity: 0, days: [] });
@@ -73,10 +73,29 @@ describe("updateSelection keeps a selection self-consistent", () => {
         dinner_plate: { quantity: 9, days: ["2026-11-11"] },
         garba_workshop: { quantity: 9, days: ["2026-11-11"] },
       },
-      1,
+      [
+        {
+          id: "toddler-1",
+          fullName: "Mira",
+          age: 2,
+          attendingDays: ["2026-11-11"],
+        },
+      ],
     );
     expect(selection.dinner_plate.quantity).toBe(3); // 2 ticketed + 1 toddler
     expect(selection.garba_workshop.quantity).toBe(2); // toddlers cannot take the workshop
+  });
+
+  it("uses the smallest attendance count across selected extra days", () => {
+    const selection = updateSelection(
+      base,
+      {
+        day_pass_adult: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
+        dinner_plate: { quantity: 5, days: ["2026-11-11", "2026-11-12"] },
+      },
+      [],
+    );
+    expect(selection.dinner_plate.quantity).toBe(2);
   });
 });
 
@@ -105,6 +124,21 @@ describe("booking store", () => {
 
     store().setSelection(createEmptySelection());
     expect(store().attendees).toEqual({ adults: [], children: [], toddlers: [] });
+  });
+
+  it("clears toddler dates when entry coverage is removed", () => {
+    store().setSelection({
+      day_pass_adult: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
+    });
+    store().addToddler();
+    const toddlerId = store().attendees.toddlers[0]?.id ?? "";
+    store().updateToddler(toddlerId, { attendingDays: ["2026-11-11", "2026-11-12"] });
+
+    store().setSelection({
+      day_pass_adult: { quantity: 2, days: ["2026-11-12"] },
+    });
+
+    expect(store().attendees.toddlers[0]?.attendingDays).toEqual(["2026-11-12"]);
   });
 
   it("sends the same booking only once when Pay is clicked twice", async () => {

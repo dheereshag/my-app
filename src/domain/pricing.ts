@@ -75,6 +75,7 @@ export interface ToddlerAttendeeDraft {
   readonly id: string;
   readonly fullName: string;
   readonly age?: number;
+  readonly attendingDays: readonly FestivalDate[];
 }
 
 export interface AttendeeGroupDraft {
@@ -276,6 +277,28 @@ export function getRequiredAttendeeCounts(
     normalized.family_pass.quantity * FAMILY_PASS_CHILDREN;
 
   return { adults, children };
+}
+
+/** Returns the number of adult and child ticket holders attending on one day. */
+export function getRequiredAttendeeCountsForDay(
+  selection: TicketSelection | PartialTicketSelection,
+  date: FestivalDate,
+): RequiredAttendeeCounts {
+  const normalized = normalizeSelection(selection);
+  const familyPasses = normalized.family_pass.days.includes(date)
+    ? normalized.family_pass.quantity
+    : 0;
+
+  return {
+    adults:
+      (normalized.day_pass_adult.days.includes(date) ? normalized.day_pass_adult.quantity : 0) +
+      normalized.all_day_adult.quantity +
+      familyPasses * FAMILY_PASS_ADULTS,
+    children:
+      (normalized.day_pass_child.days.includes(date) ? normalized.day_pass_child.quantity : 0) +
+      normalized.all_day_child.quantity +
+      familyPasses * FAMILY_PASS_CHILDREN,
+  };
 }
 
 /**

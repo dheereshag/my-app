@@ -1,20 +1,12 @@
 import { CircleAlert, Lightbulb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemTitle,
-} from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatUsd } from "@/domain";
 import type { QuoteState } from "@/hooks/use-quote";
 import type { QuoteResponse } from "@/server/quote";
-import { formatDays } from "./day-labels";
+import { ReceiptLines } from "./receipt-lines";
 
 interface OrderSummaryProps {
   readonly quote: QuoteState;
@@ -39,23 +31,7 @@ function TotalRow({ label, value, strong }: { label: string; value: string; stro
 function QuoteDetails({ quote, dimmed }: { quote: QuoteResponse; dimmed: boolean }) {
   return (
     <div className="flex flex-col gap-4" aria-busy={dimmed} data-dimmed={dimmed || undefined}>
-      <ItemGroup className={dimmed ? "gap-1 opacity-60" : "gap-1"}>
-        {quote.lines.map((line) => (
-          <Item key={line.sku} size="sm" className="items-start px-0">
-            <ItemContent>
-              <ItemTitle className="line-clamp-none">
-                {line.label} × {line.quantity}
-              </ItemTitle>
-              {line.days.length > 0 ? (
-                <ItemDescription className="line-clamp-none">
-                  {formatDays(line.days)}
-                </ItemDescription>
-              ) : null}
-            </ItemContent>
-            <ItemActions className="tabular-nums">{formatUsd(line.subtotalCents)}</ItemActions>
-          </Item>
-        ))}
-      </ItemGroup>
+      <ReceiptLines lines={quote.lines} dimmed={dimmed} />
 
       <Separator />
 

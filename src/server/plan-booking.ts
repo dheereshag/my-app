@@ -6,11 +6,13 @@
  */
 
 import {
+  type FestivalDate,
   SKU_IDS,
   type CreateBookingRequest,
   type QuoteResult,
   type SkuId,
   type StockIssue,
+  isEventBookingClosed,
 } from "../domain";
 import type { BookingConfirmation } from "./confirmation";
 import type { Inventory } from "./inventory";
@@ -30,7 +32,8 @@ export interface BookingPlan {
 
 export type BookingRejection =
   | { readonly kind: "stock"; readonly issues: readonly StockIssue[] }
-  | { readonly kind: "promo"; readonly message: string };
+  | { readonly kind: "promo"; readonly message: string }
+  | { readonly kind: "event_closed"; readonly message: string };
 
 export type PlanResult =
   | { readonly ok: true; readonly plan: BookingPlan }
@@ -41,6 +44,16 @@ export function planBooking(
   inventory: Inventory,
   now: Date,
 ): PlanResult {
+  if (isEventBookingClosed(now)) {
+    return {
+      ok: false,
+      rejection: {
+        kind: "event_closed",
+        message: "Sharad Utsav 2026 has ended. New bookings are closed.",
+      },
+    };
+  }
+
   const quote = buildQuote(request, inventory, now);
 
   // A code the customer typed that cannot be applied is an error, never a silent full-price charge.
@@ -67,13 +80,22 @@ export interface AttendeeRecord {
   readonly fullName: string;
   readonly age: number;
   readonly phone: string | null;
+  readonly attendingDays: readonly FestivalDate[] | null;
 }
 
 /** Everyone the door volunteers need to check in, including the booker when attending. */
 export function listAttendees(request: CreateBookingRequest): AttendeeRecord[] {
   const { booker, attendees } = request;
   const bookerRecords: AttendeeRecord[] = booker.isAttendingAsAdult
-    ? [{ kind: "adult", fullName: booker.fullName, age: booker.age, phone: booker.phone }]
+    ? [
+        {
+          kind: "adult",
+          fullName: booker.fullName,
+          age: booker.age,
+          phone: booker.phone,
+          attendingDays: null,
+        },
+      ]
     : [];
   return [
     ...bookerRecords,
@@ -82,18 +104,21 @@ export function listAttendees(request: CreateBookingRequest): AttendeeRecord[] {
       fullName: person.fullName,
       age: person.age,
       phone: person.phone ?? null,
+      attendingDays: null,
     })),
     ...attendees.children.map((person) => ({
       kind: "child" as const,
       fullName: person.fullName,
       age: person.age,
       phone: null,
+      attendingDays: null,
     })),
     ...attendees.toddlers.map((person) => ({
       kind: "toddler" as const,
       fullName: person.fullName,
       age: person.age,
       phone: null,
+      attendingDays: person.attendingDays,
     })),
   ];
 }
@@ -115,6 +140,11 @@ export function buildConfirmation(
     discountCents: quote.discountCents,
     totalCents: quote.totalCents,
     promoCode: plan.promoCode,
-    attendees: listAttendees(request).map(({ kind, fullName, age }) => ({ kind, fullName, age })),
+    attendees: listAttendees(request).map(({ kind, fullName, age, attendingDays }) => ({
+      kind,
+      fullName,
+      age,
+      attendingDays: attendingDays === null ? null : [...attendingDays],
+    })),
   };
 }

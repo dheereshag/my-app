@@ -19,6 +19,13 @@ export const FESTIVAL_DATES = [
   "2026-11-14",
 ] as const;
 
+// Midnight after the final festival day in Allen, Texas (CST).
+export const EVENT_BOOKING_CLOSES_AT = "2026-11-15T06:00:00.000Z";
+
+export function isEventBookingClosed(now: Date = new Date()): boolean {
+  return now.getTime() >= Date.parse(EVENT_BOOKING_CLOSES_AT);
+}
+
 export type FestivalDate = (typeof FESTIVAL_DATES)[number];
 
 export const GARBA_WORKSHOP_DATES = ["2026-11-11", "2026-11-13"] as const;

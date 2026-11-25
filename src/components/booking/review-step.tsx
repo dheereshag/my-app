@@ -40,8 +40,8 @@ export function ReviewStep({ quote, onRetryQuote }: ReviewStepProps) {
     ready &&
     (quote.quote.stockIssues.length > 0 ||
       (quote.quote.promo !== null && !quote.quote.promo.valid));
-  const canPay = ready && !blockedByQuote && !submitting;
   const failure = submit.status === "failed" ? submit.failure : null;
+  const canPay = ready && !blockedByQuote && !submitting && failure?.reason !== "closed";
   const retrying =
     failure !== null && (failure.reason === "offline" || failure.reason === "server");
 

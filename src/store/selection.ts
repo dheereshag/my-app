@@ -10,8 +10,9 @@ import {
   DANDIYA_MAX_PER_ORDER,
   MAX_QUANTITY_PER_LINE,
   getCoveredFestivalDays,
-  getRequiredAttendeeCounts,
+  getRequiredAttendeeCountsForDay,
   normalizeSelection,
+  type ToddlerAttendeeDraft,
   type FestivalDate,
   type PartialTicketSelection,
   type TicketSelection,
@@ -46,24 +47,52 @@ export interface ExtraLimits {
   readonly workshopPlaces: number;
 }
 
-/** Dinner is per person (toddlers can eat); the workshop is for ticketed people aged 5+. */
-export function getExtraLimits(selection: TicketSelection, toddlerCount: number): ExtraLimits {
-  const { adults, children } = getRequiredAttendeeCounts(selection);
-  const ticketedPeople = adults + children;
+function minimumAttendance(
+  selection: TicketSelection,
+  days: readonly FestivalDate[],
+  toddlers: readonly ToddlerAttendeeDraft[],
+  includeToddlers: boolean,
+): number {
+  if (days.length === 0) {
+    return MAX_QUANTITY_PER_LINE;
+  }
+
+  return Math.min(
+    ...days.map((day) => {
+      const { adults, children } = getRequiredAttendeeCountsForDay(selection, day);
+      const toddlerCount = includeToddlers
+        ? toddlers.filter((toddler) => toddler.attendingDays.includes(day)).length
+        : 0;
+      return adults + children + toddlerCount;
+    }),
+  );
+}
+
+/** Meals include attending toddlers; workshop places are limited to ticketed people aged 5+. */
+export function getExtraLimits(
+  selection: TicketSelection,
+  toddlers: readonly ToddlerAttendeeDraft[],
+): ExtraLimits {
   return {
-    dinnerPlates: Math.min(MAX_QUANTITY_PER_LINE, ticketedPeople + toddlerCount),
-    workshopPlaces: Math.min(MAX_QUANTITY_PER_LINE, ticketedPeople),
+    dinnerPlates: Math.min(
+      MAX_QUANTITY_PER_LINE,
+      minimumAttendance(selection, selection.dinner_plate.days, toddlers, true),
+    ),
+    workshopPlaces: Math.min(
+      MAX_QUANTITY_PER_LINE,
+      minimumAttendance(selection, selection.garba_workshop.days, toddlers, false),
+    ),
   };
 }
 
 export function updateSelection(
   current: TicketSelection,
   patch: PartialTicketSelection,
-  toddlerCount: number,
+  toddlers: readonly ToddlerAttendeeDraft[],
 ): TicketSelection {
   const merged = normalizeSelection({ ...current, ...patch });
   const coveredDays = new Set(getCoveredFestivalDays(merged));
-  const limits = getExtraLimits(merged, toddlerCount);
+  const limits = getExtraLimits(merged, toddlers);
 
   return {
     ...merged,

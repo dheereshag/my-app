@@ -42,5 +42,14 @@ export const POST = defineHandler.withValidator({ body: CreateBookingRequestSche
         },
         422,
       );
+    case "event_closed":
+      return c.json(
+        {
+          error: "Event closed",
+          code: "event_closed" as const,
+          message: outcome.message,
+        },
+        410,
+      );
   }
 });

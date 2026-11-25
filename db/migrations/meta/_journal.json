@@ -15,6 +15,13 @@
       "when": 1795597968292,
       "tag": "20261125091248_pink_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795625480788,
+      "tag": "20261125165120_same_meltdown",
+      "breakpoints": true
     }
   ]
 }

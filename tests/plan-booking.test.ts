@@ -77,6 +77,17 @@ describe("planBooking: price and reservation come from the server", () => {
 });
 
 describe("planBooking: stock", () => {
+  it("rejects new bookings after the festival closes", () => {
+    const result = planBooking(parse(), FRESH, new Date("2026-11-15T06:00:00.000Z"));
+    expect(result).toEqual({
+      ok: false,
+      rejection: {
+        kind: "event_closed",
+        message: "Sharad Utsav 2026 has ended. New bookings are closed.",
+      },
+    });
+  });
+
   it("refuses the sold-out All-Day Pass – Adult", () => {
     const result = planBooking(
       parse({
@@ -239,6 +250,57 @@ describe("booking request rules the server re-checks", () => {
     );
   });
 
+  it("checks dinner and workshop quantities against attendance on each selected day", () => {
+    const messages = issueMessages(
+      bookingInput({
+        selection: {
+          family_pass: { quantity: 1, days: ["2026-11-11"] },
+          day_pass_adult: { quantity: 1, days: ["2026-11-13"] },
+          dinner_plate: { quantity: 2, days: ["2026-11-13"] },
+          garba_workshop: { quantity: 2, days: ["2026-11-13"] },
+        },
+        attendees: {
+          adults: [SECOND_ADULT, { id: "adult-2", fullName: "Meera Shah", age: 38 }],
+          children: [
+            { id: "child-1", fullName: "Kiran Patel", age: 8 },
+            { id: "child-2", fullName: "Aarav Patel", age: 10 },
+          ],
+          toddlers: [],
+        },
+      }),
+    );
+
+    expect(messages).toContain(
+      "Dinner Plate is per person, per day: 1 person attends on 2026-11-13, but 2 plates were requested.",
+    );
+    expect(messages).toContain(
+      "Garba Workshop is one place per person: 1 ticketed person attends on 2026-11-13, but 2 places were requested.",
+    );
+  });
+
+  it("requires toddler attendance dates to be covered by an entry ticket", () => {
+    const messages = issueMessages(
+      bookingInput({
+        selection: { day_pass_adult: { quantity: 1, days: ["2026-11-11"] } },
+        attendees: {
+          adults: [],
+          children: [],
+          toddlers: [
+            {
+              id: "toddler-1",
+              fullName: "Mira Patel",
+              age: 3,
+              attendingDays: ["2026-11-13"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(messages).toContain(
+      "A child under 5 needs an accompanying entry ticket for 2026-11-13.",
+    );
+  });
+
   it("keeps attendee counts matched to tickets", () => {
     expect(
       CreateBookingRequestSchema.safeParse(
@@ -261,7 +323,14 @@ describe("booking request rules the server re-checks", () => {
       attendees: {
         adults: [SECOND_ADULT],
         children: [],
-        toddlers: [{ id: "toddler-1", fullName: "Mira Patel", age: 3 }],
+        toddlers: [
+          {
+            id: "toddler-1",
+            fullName: "Mira Patel",
+            age: 3,
+            attendingDays: ["2026-11-11"],
+          },
+        ],
       },
     });
     const result = planBooking(request, FRESH, NOW);
@@ -279,7 +348,14 @@ describe("booking request rules the server re-checks", () => {
         bookingInput({
           attendees: {
             adults: [SECOND_ADULT],
-            toddlers: [{ id: "toddler-1", fullName: "Mira Patel", age: 5 }],
+            toddlers: [
+              {
+                id: "toddler-1",
+                fullName: "Mira Patel",
+                age: 5,
+                attendingDays: ["2026-11-11"],
+              },
+            ],
           },
         }),
       ).success,

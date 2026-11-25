@@ -9,6 +9,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   MAX_TODDLERS_PER_BOOKING,
   createEmptySelection,
+  getCoveredFestivalDays,
   getRequiredAttendeeCounts,
   reconcileAttendees,
   type AttendeeGroupDraft,
@@ -115,14 +116,19 @@ export const useBookingStore = create<BookingStore>()(
 
       setSelection: (patch) =>
         set((state) => {
-          const selection = updateSelection(
-            state.selection,
-            patch,
-            state.attendees.toddlers.length,
-          );
+          const selection = updateSelection(state.selection, patch, state.attendees.toddlers);
+          const coveredDays = new Set(getCoveredFestivalDays(selection));
+          const attendees = {
+            ...state.attendees,
+            toddlers: state.attendees.toddlers.map((toddler) => ({
+              ...toddler,
+              attendingDays: toddler.attendingDays.filter((day) => coveredDays.has(day)),
+            })),
+          };
+          const adjustedSelection = updateSelection(selection, {}, attendees.toddlers);
           return {
-            selection,
-            attendees: reconcileFor(selection, state.booker, state.attendees),
+            selection: adjustedSelection,
+            attendees: reconcileFor(adjustedSelection, state.booker, attendees),
             submit: { status: "idle" },
           };
         }),
@@ -156,25 +162,39 @@ export const useBookingStore = create<BookingStore>()(
           if (state.attendees.toddlers.length >= MAX_TODDLERS_PER_BOOKING) {
             return state;
           }
-          const toddler = { id: createRandomId("toddler"), fullName: "", age: undefined };
+          const toddler = {
+            id: createRandomId("toddler"),
+            fullName: "",
+            age: undefined,
+            attendingDays: [],
+          };
+          const attendees = {
+            ...state.attendees,
+            toddlers: [...state.attendees.toddlers, toddler],
+          };
           return {
-            attendees: { ...state.attendees, toddlers: [...state.attendees.toddlers, toddler] },
+            selection: updateSelection(state.selection, {}, attendees.toddlers),
+            attendees,
           };
         }),
 
       updateToddler: (id, patch) =>
-        set((state) => ({
-          attendees: {
+        set((state) => {
+          const attendees = {
             ...state.attendees,
             toddlers: replaceById(state.attendees.toddlers, id, patch),
-          },
-        })),
+          };
+          return {
+            selection: updateSelection(state.selection, {}, attendees.toddlers),
+            attendees,
+          };
+        }),
 
       removeToddler: (id) =>
         set((state) => {
           const toddlers = state.attendees.toddlers.filter((toddler) => toddler.id !== id);
           // Fewer people can eat dinner, so extras may need trimming too.
-          const selection = updateSelection(state.selection, {}, toddlers.length);
+          const selection = updateSelection(state.selection, {}, toddlers);
           return { selection, attendees: { ...state.attendees, toddlers } };
         }),
 
