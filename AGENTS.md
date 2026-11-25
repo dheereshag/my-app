@@ -81,7 +81,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Run verification commands after every meaningful change.
 - Never stop until 0 errors and 0 warnings are achieved across all checks.
 
-## 6. Consult Local Documentation First
+## 6. Consult Local Documentation
 
 **Always check `docs/shadcn`, `docs/zustand`, and `docs/zod` before implementing any component, state management, or schema validation.**
 

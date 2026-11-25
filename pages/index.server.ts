@@ -1,18 +1,21 @@
-import { defineHandler, type InferProps } from "void";
-import { db, desc } from "void/db";
-import { messages } from "@schema";
-import { createInsertSchema } from "void/drizzle-zod";
+import { defineHandler, defineHead, type InferProps } from "void";
+import { listAvailability } from "@/server/inventory";
+import { loadInventory } from "@/server/inventory-store";
 
 export type Props = InferProps<typeof loader>;
 
+/** Live stock for the first paint; the booking itself re-checks everything on the server. */
 export const loader = defineHandler(async () => {
-  const rows = await db.select().from(messages).orderBy(desc(messages.id));
-  return { messages: rows };
+  return { availability: listAvailability(await loadInventory()) };
 });
-export const action = defineHandler.withValidator({
-  body: createInsertSchema(messages, { text: (schema) => schema.trim().min(1).max(1000) }).pick({
-    text: true,
-  }),
-})(async (_c, { body }) => {
-  await db.insert(messages).values(body);
-});
+
+export const head = defineHead<Props>(() => ({
+  title: "Book tickets | Sharad Utsav 2026",
+  meta: [
+    {
+      name: "description",
+      content:
+        "Book family tickets, dinner and workshop places for Sharad Utsav 2026 at Radha Krishna Temple, Allen, Texas.",
+    },
+  ],
+}));

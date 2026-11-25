@@ -1,0 +1,12 @@
+docs/
+dist/
+.void/
+.cloudflare/
+.wrangler/
+problem.md
+.agents/
+.agent/
+.claude/
+.cursor/
+.gemini/
+db/migrations/
