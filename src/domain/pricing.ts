@@ -12,8 +12,6 @@ import {
   INITIAL_CATALOG_MAP,
   INITIAL_PROMO_CODES,
   SKU_IDS,
-  sortFestivalDates,
-  sortGarbaWorkshopDates,
   type CatalogMap,
   type FestivalDate,
   type GarbaWorkshopDate,
@@ -22,6 +20,7 @@ import {
   type PromoStateMap,
   type SkuId,
 } from "./catalog";
+import { DraftTicketSelectionSchema } from "./selection-schema";
 
 export interface DaySelectionInput {
   readonly quantity: number;
@@ -158,61 +157,7 @@ export interface QuoteResult {
 
 /** Creates an empty TicketSelection with zero quantities across all SKUs. */
 export function createEmptySelection(): TicketSelection {
-  return {
-    day_pass_adult: { quantity: 0, days: [] },
-    day_pass_child: { quantity: 0, days: [] },
-    all_day_adult: { quantity: 0 },
-    all_day_child: { quantity: 0 },
-    family_pass: { quantity: 0, days: [] },
-    dandiya_sticks: { quantity: 0 },
-    dinner_plate: { quantity: 0, days: [] },
-    garba_workshop: { quantity: 0, days: [] },
-  };
-}
-
-function toSafeQuantity(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.trunc(value));
-}
-
-/** Normalizes a partial or full selection into canonical arrays and integer quantities. */
-export function normalizeSelection(
-  selection: TicketSelection | PartialTicketSelection,
-): TicketSelection {
-  return {
-    day_pass_adult: {
-      quantity: toSafeQuantity(selection.day_pass_adult?.quantity),
-      days: sortFestivalDates(selection.day_pass_adult?.days ?? []),
-    },
-    day_pass_child: {
-      quantity: toSafeQuantity(selection.day_pass_child?.quantity),
-      days: sortFestivalDates(selection.day_pass_child?.days ?? []),
-    },
-    all_day_adult: {
-      quantity: toSafeQuantity(selection.all_day_adult?.quantity),
-    },
-    all_day_child: {
-      quantity: toSafeQuantity(selection.all_day_child?.quantity),
-    },
-    family_pass: {
-      quantity: toSafeQuantity(selection.family_pass?.quantity),
-      days: sortFestivalDates(selection.family_pass?.days ?? []),
-    },
-    dandiya_sticks: {
-      quantity: toSafeQuantity(selection.dandiya_sticks?.quantity),
-    },
-    dinner_plate: {
-      quantity: toSafeQuantity(selection.dinner_plate?.quantity),
-      days: sortFestivalDates(selection.dinner_plate?.days ?? []),
-    },
-    garba_workshop: {
-      quantity: toSafeQuantity(selection.garba_workshop?.quantity),
-      days: sortGarbaWorkshopDates(selection.garba_workshop?.days ?? []),
-    },
-    promoCode: selection.promoCode ?? undefined,
-  };
+  return DraftTicketSelectionSchema.parse({});
 }
 
 /** Formats an integer cent amount as USD without floating-point arithmetic. */
@@ -232,31 +177,33 @@ export function formatUsd(cents: number): string {
 export function getCoveredFestivalDays(
   selection: TicketSelection | PartialTicketSelection,
 ): FestivalDate[] {
-  const normalized = normalizeSelection(selection);
   const covered = new Set<FestivalDate>();
 
-  if (normalized.all_day_adult.quantity > 0 || normalized.all_day_child.quantity > 0) {
+  if (
+    (selection.all_day_adult?.quantity ?? 0) > 0 ||
+    (selection.all_day_child?.quantity ?? 0) > 0
+  ) {
     for (const date of FESTIVAL_DATES) {
       covered.add(date);
     }
   }
-  if (normalized.day_pass_adult.quantity > 0) {
-    for (const date of normalized.day_pass_adult.days) {
+  if ((selection.day_pass_adult?.quantity ?? 0) > 0) {
+    for (const date of selection.day_pass_adult?.days ?? []) {
       covered.add(date);
     }
   }
-  if (normalized.day_pass_child.quantity > 0) {
-    for (const date of normalized.day_pass_child.days) {
+  if ((selection.day_pass_child?.quantity ?? 0) > 0) {
+    for (const date of selection.day_pass_child?.days ?? []) {
       covered.add(date);
     }
   }
-  if (normalized.family_pass.quantity > 0) {
-    for (const date of normalized.family_pass.days) {
+  if ((selection.family_pass?.quantity ?? 0) > 0) {
+    for (const date of selection.family_pass?.days ?? []) {
       covered.add(date);
     }
   }
 
-  return sortFestivalDates(Array.from(covered));
+  return FESTIVAL_DATES.filter((date) => covered.has(date));
 }
 
 /**
@@ -266,15 +213,14 @@ export function getCoveredFestivalDays(
 export function getRequiredAttendeeCounts(
   selection: TicketSelection | PartialTicketSelection,
 ): RequiredAttendeeCounts {
-  const normalized = normalizeSelection(selection);
   const adults =
-    normalized.day_pass_adult.quantity +
-    normalized.all_day_adult.quantity +
-    normalized.family_pass.quantity * FAMILY_PASS_ADULTS;
+    (selection.day_pass_adult?.quantity ?? 0) +
+    (selection.all_day_adult?.quantity ?? 0) +
+    (selection.family_pass?.quantity ?? 0) * FAMILY_PASS_ADULTS;
   const children =
-    normalized.day_pass_child.quantity +
-    normalized.all_day_child.quantity +
-    normalized.family_pass.quantity * FAMILY_PASS_CHILDREN;
+    (selection.day_pass_child?.quantity ?? 0) +
+    (selection.all_day_child?.quantity ?? 0) +
+    (selection.family_pass?.quantity ?? 0) * FAMILY_PASS_CHILDREN;
 
   return { adults, children };
 }
@@ -284,19 +230,18 @@ export function getRequiredAttendeeCountsForDay(
   selection: TicketSelection | PartialTicketSelection,
   date: FestivalDate,
 ): RequiredAttendeeCounts {
-  const normalized = normalizeSelection(selection);
-  const familyPasses = normalized.family_pass.days.includes(date)
-    ? normalized.family_pass.quantity
+  const familyPasses = selection.family_pass?.days.includes(date)
+    ? selection.family_pass.quantity
     : 0;
 
   return {
     adults:
-      (normalized.day_pass_adult.days.includes(date) ? normalized.day_pass_adult.quantity : 0) +
-      normalized.all_day_adult.quantity +
+      (selection.day_pass_adult?.days.includes(date) ? selection.day_pass_adult.quantity : 0) +
+      (selection.all_day_adult?.quantity ?? 0) +
       familyPasses * FAMILY_PASS_ADULTS,
     children:
-      (normalized.day_pass_child.days.includes(date) ? normalized.day_pass_child.quantity : 0) +
-      normalized.all_day_child.quantity +
+      (selection.day_pass_child?.days.includes(date) ? selection.day_pass_child.quantity : 0) +
+      (selection.all_day_child?.quantity ?? 0) +
       familyPasses * FAMILY_PASS_CHILDREN,
   };
 }
@@ -604,7 +549,7 @@ export function calculateQuote(
   promoState?: PromoStateInput,
   now: Date = new Date(),
 ): QuoteResult {
-  const normalized = normalizeSelection(selection);
+  const normalized = DraftTicketSelectionSchema.parse(selection);
   const stockUsageBySku = createEmptyStockUsage();
   const rawLines: RawLineDraft[] = [];
 

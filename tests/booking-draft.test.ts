@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { createEmptySelection } from "../src/domain";
 import type { BookingConfirmation } from "../src/server/confirmation";
+import { parseQuoteRequest, validateDraft, type BookingDraft } from "../src/store/booking-request";
+import { PersistedDraftSchema } from "../src/store/persisted-draft";
 import { updateSelection } from "../src/store/selection";
 
 const postBooking = vi.hoisted(() => vi.fn());
@@ -32,6 +34,84 @@ const CONFIRMATION: BookingConfirmation = {
 function store() {
   return useBookingStore.getState();
 }
+
+describe("booking request and draft compatibility", () => {
+  it("cleans the draft promo without sending a stale nested code or client prices", () => {
+    const draft: BookingDraft = {
+      selection: {
+        ...createEmptySelection(),
+        day_pass_adult: { quantity: 1, days: ["2026-11-11"] },
+        promoCode: "STALE".repeat(10),
+      },
+      promoCode: "  SEVA10  ",
+      booker: {
+        fullName: "Asha Patel",
+        email: "asha@example.com",
+        phone: "214 555 0101",
+        age: 40,
+        isAttendingAsAdult: true,
+      },
+      attendees: { adults: [], children: [], toddlers: [] },
+    };
+
+    const booking = validateDraft(draft, "booking-original");
+    expect(booking.valid).toBe(true);
+    if (!booking.valid) return;
+    expect(booking.request.promoCode).toBe("SEVA10");
+    expect(booking.request.selection).not.toHaveProperty("promoCode");
+    expect(parseQuoteRequest({ ...draft, promoCode: "  " })?.promoCode).toBeNull();
+    const blankPromo = validateDraft({ ...draft, promoCode: "  " }, "booking-original");
+    expect(blankPromo.valid && blankPromo.request.promoCode).toBeNull();
+
+    const unsorted = validateDraft(
+      {
+        ...draft,
+        selection: {
+          ...draft.selection,
+          day_pass_adult: { quantity: 1, days: ["2026-11-13", "2026-11-11"] },
+        },
+      },
+      "booking-original",
+    );
+    expect(unsorted.valid && unsorted.request.selection.day_pass_adult.days).toEqual([
+      "2026-11-13",
+      "2026-11-11",
+    ]);
+
+    const tampered = { ...draft, selection: { ...draft.selection, totalCents: 1 } };
+    expect(validateDraft(tampered, "booking-original").valid).toBe(false);
+  });
+
+  it("restores older drafts and confirmations without toddler attendance dates", () => {
+    const saved = PersistedDraftSchema.safeParse({
+      selection: createEmptySelection(),
+      promoCode: "",
+      booker: {
+        fullName: "Asha Patel",
+        email: "asha@example.com",
+        phone: "214 555 0101",
+        age: 40,
+        isAttendingAsAdult: true,
+      },
+      attendees: {
+        adults: [],
+        children: [],
+        toddlers: [{ id: "t1", fullName: "Mira", age: 3 }],
+      },
+      idempotencyKey: "booking-original",
+      confirmation: {
+        ...CONFIRMATION,
+        attendees: [{ kind: "toddler", fullName: "Mira", age: 3 }],
+      },
+    });
+
+    expect(saved.success).toBe(true);
+    if (!saved.success) return;
+    expect(saved.data.idempotencyKey).toBe("booking-original");
+    expect(saved.data.attendees.toddlers[0].attendingDays).toEqual([]);
+    expect(saved.data.confirmation?.attendees[0].attendingDays).toBeNull();
+  });
+});
 
 describe("updateSelection keeps a selection self-consistent", () => {
   const base = createEmptySelection();

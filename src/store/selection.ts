@@ -11,12 +11,12 @@ import {
   MAX_QUANTITY_PER_LINE,
   getCoveredFestivalDays,
   getRequiredAttendeeCountsForDay,
-  normalizeSelection,
   type ToddlerAttendeeDraft,
   type FestivalDate,
   type PartialTicketSelection,
   type TicketSelection,
 } from "../domain";
+import { DraftTicketSelectionSchema } from "../domain/selection-schema";
 
 interface DayQuantity<D extends FestivalDate> {
   readonly quantity: number;
@@ -90,7 +90,7 @@ export function updateSelection(
   patch: PartialTicketSelection,
   toddlers: readonly ToddlerAttendeeDraft[],
 ): TicketSelection {
-  const merged = normalizeSelection({ ...current, ...patch });
+  const merged = DraftTicketSelectionSchema.parse({ ...current, ...patch });
   const coveredDays = new Set(getCoveredFestivalDays(merged));
   const limits = getExtraLimits(merged, toddlers);
 

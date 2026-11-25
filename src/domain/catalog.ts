@@ -7,7 +7,7 @@ export const EVENT_METADATA = {
   name: "Sharad Utsav 2026",
   location: "Radha Krishna Temple, Allen, Texas",
   currency: "USD",
-  dateRangeLabel: "Tue 10 Nov 2026 – Sat 14 Nov 2026",
+  dateRangeLabel: "Tue 10 Nov 2026 - Sat 14 Nov 2026",
   totalDays: 5,
 } as const;
 
@@ -84,9 +84,6 @@ export const FESTIVAL_DAYS: readonly FestivalDayInfo[] = [
   },
 ] as const;
 
-const FESTIVAL_DATE_ORDER = new Map<FestivalDate, number>(
-  FESTIVAL_DATES.map((date, index) => [date, index]),
-);
 const FESTIVAL_DATE_SET = new Set<string>(FESTIVAL_DATES);
 const GARBA_WORKSHOP_DATE_SET = new Set<string>(GARBA_WORKSHOP_DATES);
 
@@ -98,32 +95,6 @@ export function isFestivalDate(value: string): value is FestivalDate {
 /** Type guard checking whether a string is a valid Garba Workshop date (Nov 11 or Nov 13). */
 export function isGarbaWorkshopDate(value: string): value is GarbaWorkshopDate {
   return GARBA_WORKSHOP_DATE_SET.has(value);
-}
-
-/** Deduplicates and sorts festival dates into canonical chronological order. */
-export function sortFestivalDates(dates: readonly FestivalDate[]): FestivalDate[] {
-  const unique = new Set<FestivalDate>();
-  for (const date of dates) {
-    if (FESTIVAL_DATE_SET.has(date)) {
-      unique.add(date);
-    }
-  }
-  return Array.from(unique).sort(
-    (a, b) => (FESTIVAL_DATE_ORDER.get(a) ?? 0) - (FESTIVAL_DATE_ORDER.get(b) ?? 0),
-  );
-}
-
-/** Deduplicates and sorts workshop dates into canonical chronological order. */
-export function sortGarbaWorkshopDates(dates: readonly GarbaWorkshopDate[]): GarbaWorkshopDate[] {
-  const unique = new Set<GarbaWorkshopDate>();
-  for (const date of dates) {
-    if (GARBA_WORKSHOP_DATE_SET.has(date)) {
-      unique.add(date);
-    }
-  }
-  return Array.from(unique).sort(
-    (a, b) => (FESTIVAL_DATE_ORDER.get(a) ?? 0) - (FESTIVAL_DATE_ORDER.get(b) ?? 0),
-  );
 }
 
 export const BOOKER_MIN_AGE = 18;

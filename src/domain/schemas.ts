@@ -26,17 +26,7 @@ import {
   getRequiredAttendeeCountsForDay,
 } from "./pricing";
 
-function countDigits(value: string): number {
-  let count = 0;
-  for (const ch of value) {
-    if (ch >= "0" && ch <= "9") {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-const PHONE_CHARACTER_PATTERN = /^[+\d\s().-]+$/;
+const PHONE_PATTERN = /^(?=(?:\D*\d){7})[+\d\s().-]+$/;
 
 export const FestivalDateSchema = z.enum(FESTIVAL_DATES, {
   error: "Choose a valid festival date between Nov 10 and Nov 14, 2026.",
@@ -46,13 +36,15 @@ export const GarbaWorkshopDateSchema = z.enum(GARBA_WORKSHOP_DATES, {
   error: "Garba Workshop is only available on Nov 11 and Nov 13, 2026.",
 });
 
-function createUniqueDaysSchema<T extends z.ZodType>(dateSchema: T) {
-  return z
-    .array(dateSchema, { error: "Selected days must be a list of dates." })
-    .refine((days) => new Set(days).size === days.length, {
-      error: "Duplicate dates are not allowed.",
-    });
-}
+const UniqueDaysCheck = z.refine<readonly string[]>((days) => new Set(days).size === days.length, {
+  error: "Duplicate dates are not allowed.",
+});
+const FestivalDaysSchema = z
+  .array(FestivalDateSchema, { error: "Selected days must be a list of dates." })
+  .check(UniqueDaysCheck);
+const WorkshopDaysSchema = z
+  .array(GarbaWorkshopDateSchema, { error: "Selected days must be a list of dates." })
+  .check(UniqueDaysCheck);
 
 const NonNegativeIntSchema = z
   .int({ error: "Quantity must be a whole number." })
@@ -64,7 +56,7 @@ const LineQuantitySchema = NonNegativeIntSchema.max(MAX_QUANTITY_PER_LINE, {
 
 export const DayPassInputSchema = z.strictObject({
   quantity: LineQuantitySchema.default(0),
-  days: createUniqueDaysSchema(FestivalDateSchema).default([]),
+  days: FestivalDaysSchema.default([]),
 });
 
 export const AllDayInputSchema = z.strictObject({
@@ -79,7 +71,7 @@ export const DandiyaInputSchema = z.strictObject({
 
 export const WorkshopInputSchema = z.strictObject({
   quantity: LineQuantitySchema.default(0),
-  days: createUniqueDaysSchema(GarbaWorkshopDateSchema).default([]),
+  days: WorkshopDaysSchema.default([]),
 });
 
 export const PromoCodeInputSchema = z
@@ -181,7 +173,7 @@ export const PhoneSchema = z
   .string({ error: "Phone number is required." })
   .trim()
   .max(20, { error: "Phone number must be 20 characters or fewer." })
-  .refine((val) => PHONE_CHARACTER_PATTERN.test(val) && countDigits(val) >= 7, {
+  .refine((val) => PHONE_PATTERN.test(val), {
     error: "Enter a valid phone number with at least 7 digits.",
   });
 
@@ -189,10 +181,9 @@ export const OptionalPhoneSchema = z
   .string({ error: "Phone number must be text." })
   .trim()
   .max(20, { error: "Phone number must be 20 characters or fewer." })
-  .refine(
-    (val) => val.length === 0 || (PHONE_CHARACTER_PATTERN.test(val) && countDigits(val) >= 7),
-    { error: "Enter a valid phone number with at least 7 digits." },
-  )
+  .refine((val) => val.length === 0 || PHONE_PATTERN.test(val), {
+    error: "Enter a valid phone number with at least 7 digits.",
+  })
   .transform((val) => (val.length === 0 ? undefined : val))
   .optional();
 
@@ -259,7 +250,7 @@ export const ToddlerAttendeeSchema = z.strictObject({
   id: AttendeeIdSchema,
   fullName: FullNameSchema,
   age: ToddlerAgeSchema,
-  attendingDays: createUniqueDaysSchema(FestivalDateSchema).refine((days) => days.length > 0, {
+  attendingDays: FestivalDaysSchema.refine((days) => days.length > 0, {
     error: "Choose at least one festival day for this child.",
   }),
 });

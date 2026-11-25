@@ -24,6 +24,7 @@ import {
   TODDLER_MAX_AGE,
   TicketSelectionSchema,
   ToddlerAgeSchema,
+  ToddlerAttendeeSchema,
   calculateQuote,
   createCatalogMap,
   createEmptySelection,
@@ -226,6 +227,15 @@ describe("Pure Formatting, Day Coverage, and Attendee Reconciliation", () => {
 });
 
 describe("Integer-Cent Pricing & Stock Calculation", () => {
+  it("normalizes partial selections and orders duplicate days for pricing", () => {
+    const quote = calculateQuote({
+      day_pass_adult: { quantity: 1, days: ["2026-11-14", "2026-11-10", "2026-11-14"] },
+    });
+
+    expect(quote.lineItems[0]?.days).toEqual(["2026-11-10", "2026-11-14"]);
+    expect(quote.totalCents).toBe(3000);
+  });
+
   it("prices multi-day passes, family pass multi-day, dandiya, dinner, and workshop accurately", () => {
     const selection = makeSelection({
       day_pass_adult: { quantity: 2, days: ["2026-11-10", "2026-11-11"] }, // 2*2*1500 = 6000, stock 4
@@ -468,6 +478,24 @@ describe("Promo Rules Engine", () => {
 });
 
 describe("Zod v4 Validation & Cross-Field Rules", () => {
+  it.each([-1, 1.5])("reports invalid quantities (%s) without throwing", (quantity) => {
+    const result = CreateBookingRequestSchema.safeParse({
+      idempotencyKey: "booking-original",
+      selection: { day_pass_adult: { quantity, days: ["2026-11-11"] } },
+      booker: makeValidBooker(),
+      attendees: { adults: [], children: [], toddlers: [] },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some(
+          (issue) => issue.path.join(".") === "selection.day_pass_adult.quantity",
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("enforces exact integer age boundaries across booker, adult, child, and toddler", () => {
     // Toddler: 0..4
     expect(ToddlerAgeSchema.safeParse(0).success).toBe(true);
@@ -516,6 +544,9 @@ describe("Zod v4 Validation & Cross-Field Rules", () => {
     expect(BookerSchema.safeParse(makeValidBooker({ fullName: " A " })).success).toBe(false);
     expect(BookerSchema.safeParse(makeValidBooker({ email: "not-an-email" })).success).toBe(false);
     expect(BookerSchema.safeParse(makeValidBooker({ phone: "123456" })).success).toBe(false);
+    expect(BookerSchema.safeParse(makeValidBooker({ phone: "+1 (2) 3-4.5 67" })).success).toBe(
+      true,
+    );
     expect(BookerSchema.safeParse(makeValidBooker({ phone: "abcdefg1234567" })).success).toBe(
       false,
     );
@@ -591,6 +622,20 @@ describe("Zod v4 Validation & Cross-Field Rules", () => {
     ).toBe(false);
     expect(
       TicketSelectionSchema.safeParse({
+        day_pass_adult: { quantity: 1, days: ["2026-11-11"] },
+        garba_workshop: { quantity: 1, days: ["2026-11-11", "2026-11-11"] },
+      }).success,
+    ).toBe(false);
+    expect(
+      ToddlerAttendeeSchema.safeParse({
+        id: "t1",
+        fullName: "Mira",
+        age: 3,
+        attendingDays: ["2026-11-11", "2026-11-11"],
+      }).success,
+    ).toBe(false);
+    expect(
+      TicketSelectionSchema.safeParse({
         day_pass_adult: { quantity: 1, days: ["2026-11-15"] },
       }).success,
     ).toBe(false);
@@ -643,6 +688,21 @@ describe("Zod v4 Validation & Cross-Field Rules", () => {
         }),
       ).success,
     ).toBe(true);
+  });
+
+  it("preserves top-level and nested promo precedence for API requests", () => {
+    const selection = {
+      day_pass_adult: { quantity: 1, days: ["2026-11-11"] },
+      promoCode: " SEVA10 ",
+    };
+
+    expect(resolveRequestPromoCode(QuoteRequestSchema.parse({ selection }))).toBe("SEVA10");
+    expect(
+      resolveRequestPromoCode(QuoteRequestSchema.parse({ selection, promoCode: null })),
+    ).toBeNull();
+    expect(resolveRequestPromoCode(QuoteRequestSchema.parse({ selection, promoCode: "  " }))).toBe(
+      "",
+    );
   });
 
   it("enforces attendee parity, booker attending rule, idempotencyKey, and rejects client prices", () => {

@@ -4,11 +4,13 @@
  * errors early; the server re-validates everything.
  */
 
+import { z } from "zod";
 import {
   AdultAttendeeSchema,
   BookerSchema,
   ChildAttendeeSchema,
   CreateBookingRequestSchema,
+  PromoCodeInputSchema,
   QuoteRequestSchema,
   TicketSelectionSchema,
   ToddlerAttendeeSchema,
@@ -41,6 +43,19 @@ export type DraftValidation =
   | { readonly valid: true; readonly request: CreateBookingRequest }
   | { readonly valid: false; readonly errors: FieldErrors };
 
+const RequestSelectionSchema = TicketSelectionSchema.safeExtend({
+  promoCode: z.string().nullable().optional(),
+}).transform(({ promoCode: _ignored, ...selection }) => selection);
+const RequestPromoCodeSchema = PromoCodeInputSchema.transform((code) => code || null);
+const DraftQuoteRequestSchema = QuoteRequestSchema.extend({
+  selection: RequestSelectionSchema,
+  promoCode: RequestPromoCodeSchema,
+});
+const DraftBookingRequestSchema = CreateBookingRequestSchema.safeExtend({
+  selection: RequestSelectionSchema,
+  promoCode: RequestPromoCodeSchema,
+});
+
 /** Random id that also works on plain-http pages, where crypto.randomUUID is unavailable. */
 export function createRandomId(prefix: string): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -53,31 +68,21 @@ export function isBookerAttendingAsAdult(draft: BookingDraft): boolean {
   return draft.booker.isAttendingAsAdult && getRequiredAttendeeCounts(draft.selection).adults > 0;
 }
 
-function cleanPromoCode(promoCode: string): string | null {
-  const trimmed = promoCode.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function selectionInput(selection: TicketSelection) {
-  const { promoCode: _ignored, ...tickets } = selection;
-  return tickets;
-}
-
 export function parseQuoteRequest(
   draft: Pick<BookingDraft, "selection" | "promoCode">,
 ): QuoteRequest | null {
-  const parsed = QuoteRequestSchema.safeParse({
-    selection: selectionInput(draft.selection),
-    promoCode: cleanPromoCode(draft.promoCode),
+  const parsed = DraftQuoteRequestSchema.safeParse({
+    selection: draft.selection,
+    promoCode: draft.promoCode,
   });
   return parsed.success ? parsed.data : null;
 }
 
 export function validateDraft(draft: BookingDraft, idempotencyKey: string): DraftValidation {
-  const parsed = CreateBookingRequestSchema.safeParse({
+  const parsed = DraftBookingRequestSchema.safeParse({
     idempotencyKey,
-    selection: selectionInput(draft.selection),
-    promoCode: cleanPromoCode(draft.promoCode),
+    selection: draft.selection,
+    promoCode: draft.promoCode,
     booker: { ...draft.booker, isAttendingAsAdult: isBookerAttendingAsAdult(draft) },
     attendees: draft.attendees,
   });
@@ -121,10 +126,7 @@ function issuesOf(result: {
 
 /** Problems with the chosen tickets only (step 1), keyed under `selection`. */
 export function validateTickets(selection: TicketSelection): FieldErrors {
-  return collectErrors(
-    "selection",
-    issuesOf(TicketSelectionSchema.safeParse(selectionInput(selection))),
-  );
+  return collectErrors("selection", issuesOf(RequestSelectionSchema.safeParse(selection)));
 }
 
 /** Problems with the booker and attendee details only (step 2). */
