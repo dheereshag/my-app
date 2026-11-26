@@ -2,17 +2,16 @@
   "version": 1,
   "source": {},
   "resolved": {
-    "account_id": "ae792d63fb6118270dd701f49aabe4e7",
-    "compatibility_date": "2026-02-24",
+    "account_id": "bb8035390cb1b4222ca2e1e72fa4b04d",
     "d1_databases": [
       {
         "binding": "DB",
-        "database_name": "my-app-db",
-        "database_id": "63607b96-2780-4a1e-9c7a-157c8cd178bd",
+        "database_name": "sharad-utsav-booking-db",
+        "database_id": "239e47b1-0068-47d5-a43c-19636dfd304d",
         "migrations_dir": "./db/migrations"
       }
     ],
-    "name": "my-app"
+    "name": "sharad-utsav-booking"
   },
-  "text": "{\n  \"account_id\": \"ae792d63fb6118270dd701f49aabe4e7\",\n  \"compatibility_date\": \"2026-02-24\",\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"my-app-db\",\n      \"database_id\": \"63607b96-2780-4a1e-9c7a-157c8cd178bd\",\n      \"migrations_dir\": \"./db/migrations\"\n    }\n  ],\n  \"name\": \"my-app\"\n}\n"
+  "text": "{\n  \"account_id\": \"bb8035390cb1b4222ca2e1e72fa4b04d\",\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"sharad-utsav-booking-db\",\n      \"database_id\": \"239e47b1-0068-47d5-a43c-19636dfd304d\",\n      \"migrations_dir\": \"./db/migrations\"\n    }\n  ],\n  \"name\": \"sharad-utsav-booking\"\n}\n"
 }

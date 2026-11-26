@@ -1,46 +1,35 @@
-/**
- * The confirmation returned for a booking. It is stored verbatim with the booking
- * so a repeated request (double click, retry after a dropped connection) gets the
- * identical response back, and it is re-validated when read from storage.
- */
+// What GET /api/bookings/:id shows. Deliberately small: booker name + email only, no phone, no card data.
+import { formatFestivalDay } from '../domain/catalog';
+import type { Attendee, Quote } from '../domain/types';
+import type { BookingRecord } from './repo';
 
-import { z } from "zod";
-import { SKU_IDS } from "../domain";
-import { BookingDateSchema } from "../domain/legacy-booking";
+const ticketSummary = (a: Attendee): string => {
+  switch (a.ticket.kind) {
+    case 'day':
+      return `Day Pass: ${a.ticket.days.map(formatFestivalDay).join(', ')}`;
+    case 'allDay':
+      return 'All-Day Pass';
+    case 'family':
+      return 'Family Pass';
+    case 'none':
+      return 'Free entry (under 5)';
+  }
+};
 
-const ConfirmationLineSchema = z.object({
-  sku: z.enum(SKU_IDS),
-  label: z.string(),
-  quantity: z.int(),
-  days: z.array(BookingDateSchema),
-  unitPriceCents: z.int(),
-  subtotalCents: z.int(),
-  discountCents: z.int(),
-  totalCents: z.int(),
+export interface Confirmation {
+  readonly bookingId: string;
+  readonly reference: string;
+  readonly booker: { readonly name: string; readonly email: string };
+  readonly attendees: readonly { readonly name: string; readonly ticket: string }[];
+  readonly quote: Quote;
+  readonly createdAt: string;
+}
+
+export const toConfirmation = (r: BookingRecord): Confirmation => ({
+  bookingId: r.id,
+  reference: r.reference,
+  booker: { name: r.booker.name, email: r.booker.email },
+  attendees: r.attendees.map((a) => ({ name: a.name, ticket: ticketSummary(a) })),
+  quote: r.quote,
+  createdAt: r.createdAt,
 });
-
-export const BookingConfirmationSchema = z.object({
-  reference: z.string(),
-  status: z.literal("confirmed"),
-  payment: z.object({
-    method: z.literal("simulated"),
-    status: z.literal("paid"),
-    amountCents: z.int(),
-  }),
-  booker: z.object({ fullName: z.string(), email: z.string() }),
-  lines: z.array(ConfirmationLineSchema),
-  subtotalCents: z.int(),
-  discountCents: z.int(),
-  totalCents: z.int(),
-  promoCode: z.string().nullable(),
-  attendees: z.array(
-    z.object({
-      kind: z.enum(["adult", "child", "toddler"]),
-      fullName: z.string(),
-      age: z.int(),
-      attendingDays: z.array(BookingDateSchema).nullable().default(null),
-    }),
-  ),
-});
-
-export type BookingConfirmation = z.infer<typeof BookingConfirmationSchema>;

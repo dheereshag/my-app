@@ -1,1 +1,0 @@
-ALTER TABLE `attendees` ADD `attendance_days_json` text;

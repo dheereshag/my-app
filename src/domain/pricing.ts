@@ -1,298 +1,140 @@
-import { EVENT_METADATA, FESTIVAL_DATES, type FestivalDate } from "./calendar";
+// Pure pricing in integer cents. No I/O, no clock: promo status is decided by evaluatePromo().
 import {
-  FAMILY_PASS_KIDS_FREE_SAVINGS_CENTS_PER_DAY,
-  INITIAL_CATALOG_MAP,
-  SKU_IDS,
-  type CatalogMap,
-  type SkuId,
-} from "./catalog";
-import {
-  getCoveredFestivalDays,
-  getRequiredAttendeeCounts,
-  type PartialTicketSelection,
-  type TicketSelection,
-} from "./attendees";
-import { formatUsd } from "./money";
-import {
-  evaluatePromoCode,
-  resolveQuotePromoCode,
-  type PromoEvaluationResult,
-  type PromoStateInput,
-} from "./promotions";
-import { DraftTicketSelectionSchema } from "./selection-schema";
+  ADULT_MIN_AGE,
+  CATALOG,
+  CHILD_MIN_AGE,
+  FAMILY_PASS_MAX_ADULTS,
+  FAMILY_PASS_MAX_CHILDREN,
+  FESTIVAL_DAYS,
+  formatFestivalDay,
+  type ItemId,
+} from './catalog';
+import type { Attendee, PromoResult, Quote, QuoteLine, ValidBooking } from './types';
 
-export interface QuoteLineItem {
-  readonly sku: SkuId;
-  readonly label: string;
-  readonly unitPriceCents: number;
-  readonly quantity: number;
-  readonly days: FestivalDate[];
-  readonly stockUnits: number;
-  readonly lineSubtotalCents: number;
-  readonly discountCents: number;
-  readonly lineTotalCents: number;
+const dollars = (cents: number): string => (cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`);
+
+/** Half-up rounding of subtotal * percent / 100, entirely in integers. */
+export function percentDiscountCents(subtotalCents: number, percent: number): number {
+  return Math.floor((subtotalCents * percent + 50) / 100);
 }
 
-export interface StockIssue {
-  readonly sku: SkuId;
-  readonly label: string;
-  readonly requested: number;
-  readonly available: number;
-  readonly message: string;
-}
+// Private band helper: price bands only (toddlers have no priced entry item).
+const isAdult = (a: Attendee): boolean => a.age >= ADULT_MIN_AGE;
+const isChild = (a: Attendee): boolean => a.age >= CHILD_MIN_AGE && a.age < ADULT_MIN_AGE;
+const dayItem = (a: Attendee): ItemId | undefined => (isAdult(a) ? 'day-adult' : isChild(a) ? 'day-child' : undefined);
+const allDayItem = (a: Attendee): ItemId | undefined =>
+  isAdult(a) ? 'allday-adult' : isChild(a) ? 'allday-child' : undefined;
 
-export interface QuoteResult {
-  readonly currency: typeof EVENT_METADATA.currency;
-  readonly lineItems: QuoteLineItem[];
-  readonly stockUsageBySku: Record<SkuId, number>;
-  readonly stockIssues: StockIssue[];
-  readonly hasStockIssues: boolean;
-  readonly coveredDays: FestivalDate[];
-  readonly requiredAdults: number;
-  readonly requiredChildren: number;
-  readonly subtotalCents: number;
-  readonly childTicketSubtotalCents: number;
-  readonly discountCents: number;
-  readonly totalCents: number;
-  readonly promo: PromoEvaluationResult | null;
-  readonly kidsFreeFamilyTip: boolean;
-  readonly kidsFreeFamilyTipSavingsCents: number;
-  readonly kidsFreeFamilyTipMessage: string | null;
-}
-
-interface RawLineDraft {
-  readonly sku: SkuId;
-  readonly label: string;
-  readonly unitPriceCents: number;
-  readonly quantity: number;
-  readonly days: FestivalDate[];
-  readonly stockUnits: number;
-  readonly lineSubtotalCents: number;
-}
-
-function allocateProportionalDiscounts(
-  lines: readonly RawLineDraft[],
-  totalDiscountCents: number,
-  subtotalCents: number,
-): number[] {
-  if (totalDiscountCents <= 0 || subtotalCents <= 0 || lines.length === 0) {
-    return lines.map(() => 0);
-  }
-
-  const baseDiscounts = lines.map((line) =>
-    Math.trunc((totalDiscountCents * line.lineSubtotalCents) / subtotalCents),
-  );
-  const remainders = lines.map((line, index) => ({
-    index,
-    remainder: (totalDiscountCents * line.lineSubtotalCents) % subtotalCents,
-    cap: line.lineSubtotalCents - baseDiscounts[index],
-  }));
-
-  let allocated = 0;
-  for (const amount of baseDiscounts) {
-    allocated += amount;
-  }
-
-  let leftover = totalDiscountCents - allocated;
-  if (leftover > 0) {
-    const ranked = [...remainders].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
-    for (const entry of ranked) {
-      if (leftover <= 0) {
-        break;
-      }
-      if (entry.cap > 0) {
-        baseDiscounts[entry.index] += 1;
-        leftover -= 1;
-      }
-    }
-  }
-
-  return baseDiscounts;
-}
-
-function createEmptyStockUsage(): Record<SkuId, number> {
-  const entries = SKU_IDS.map((sku) => [sku, 0] as const);
-  return Object.fromEntries(entries) as Record<SkuId, number>;
-}
-
-/**
- * Computes an authoritative integer-cent quote, itemized line discounts, stock usage by SKU,
- * stock availability issues, covered festival days, required attendees, and promo tips.
- */
-export function calculateQuote(
-  selection: TicketSelection | PartialTicketSelection,
-  catalogMap: CatalogMap = INITIAL_CATALOG_MAP,
-  promoState?: PromoStateInput,
-  now: Date = new Date(),
-): QuoteResult {
-  const normalized = DraftTicketSelectionSchema.parse(selection);
-  const stockUsageBySku = createEmptyStockUsage();
-  const rawLines: RawLineDraft[] = [];
-
-  const addLine = (
-    sku: SkuId,
-    quantity: number,
-    days: readonly FestivalDate[],
-    stockUnits: number,
-  ): void => {
-    if (stockUnits <= 0 || quantity <= 0) {
-      return;
-    }
-    const item = catalogMap[sku];
-    stockUsageBySku[sku] += stockUnits;
-    rawLines.push({
-      sku,
-      label: item.label,
-      unitPriceCents: item.priceCents,
-      quantity,
-      days: [...days],
-      stockUnits,
-      lineSubtotalCents: item.priceCents * stockUnits,
-    });
+function line(itemId: ItemId, qty: number, extra: { attendee?: Attendee; day?: QuoteLine['day'] } = {}): QuoteLine {
+  const item = CATALOG[itemId];
+  const who = extra.attendee ? ` – ${extra.attendee.name}` : '';
+  return {
+    itemId,
+    label: `${item.label}${who}`,
+    attendeeId: extra.attendee?.id,
+    day: extra.day,
+    qty,
+    unitCents: item.priceCents,
+    totalCents: item.priceCents * qty,
   };
+}
 
-  addLine(
-    "day_pass_adult",
-    normalized.day_pass_adult.quantity,
-    normalized.day_pass_adult.days,
-    normalized.day_pass_adult.quantity * normalized.day_pass_adult.days.length,
-  );
-  addLine(
-    "day_pass_child",
-    normalized.day_pass_child.quantity,
-    normalized.day_pass_child.days,
-    normalized.day_pass_child.quantity * normalized.day_pass_child.days.length,
-  );
-  addLine(
-    "all_day_adult",
-    normalized.all_day_adult.quantity,
-    [...FESTIVAL_DATES],
-    normalized.all_day_adult.quantity,
-  );
-  addLine(
-    "all_day_child",
-    normalized.all_day_child.quantity,
-    [...FESTIVAL_DATES],
-    normalized.all_day_child.quantity,
-  );
-  addLine(
-    "family_pass",
-    normalized.family_pass.quantity,
-    normalized.family_pass.days,
-    normalized.family_pass.quantity * normalized.family_pass.days.length,
-  );
-  addLine(
-    "dandiya_sticks",
-    normalized.dandiya_sticks.quantity,
-    [],
-    normalized.dandiya_sticks.quantity,
-  );
-  addLine(
-    "dinner_plate",
-    normalized.dinner_plate.quantity,
-    normalized.dinner_plate.days,
-    normalized.dinner_plate.quantity * normalized.dinner_plate.days.length,
-  );
-  addLine(
-    "garba_workshop",
-    normalized.garba_workshop.quantity,
-    [...normalized.garba_workshop.days],
-    normalized.garba_workshop.quantity * normalized.garba_workshop.days.length,
-  );
-
-  let subtotalCents = 0;
-  let childTicketSubtotalCents = 0;
-  for (const line of rawLines) {
-    subtotalCents += line.lineSubtotalCents;
-    if (line.sku === "day_pass_child" || line.sku === "all_day_child") {
-      childTicketSubtotalCents += line.lineSubtotalCents;
-    }
+function attendeeLines(a: Attendee): QuoteLine[] {
+  const lines: QuoteLine[] = [];
+  const entry = a.ticket.kind === 'day' ? dayItem(a) : a.ticket.kind === 'allDay' ? allDayItem(a) : undefined;
+  if (entry !== undefined) {
+    // One day-pass line per person, qty = number of days (stock unit = person-day, D12).
+    lines.push(line(entry, a.ticket.kind === 'day' ? a.ticket.days.length : 1, { attendee: a }));
   }
+  if (a.dinnerDays.length > 0) lines.push(line('dinner', a.dinnerDays.length, { attendee: a }));
+  if (a.garbaDays.length > 0) lines.push(line('garba', a.garbaDays.length, { attendee: a }));
+  return lines;
+}
 
-  const rawCode = resolveQuotePromoCode(normalized, promoState);
-  const trimmedCode = (rawCode ?? "").trim();
-  const promo =
-    trimmedCode.length > 0
-      ? evaluatePromoCode(trimmedCode, promoState, subtotalCents, childTicketSubtotalCents, now)
-      : null;
-
-  const discountCents = promo?.valid ? promo.discountCents : 0;
-
-  let lineDiscounts: number[];
-  if (promo?.valid && promo.kind === "kids_free") {
-    lineDiscounts = rawLines.map((line) =>
-      line.sku === "day_pass_child" || line.sku === "all_day_child" ? line.lineSubtotalCents : 0,
-    );
-  } else {
-    lineDiscounts = allocateProportionalDiscounts(rawLines, discountCents, subtotalCents);
-  }
-
-  const lineItems: QuoteLineItem[] = rawLines.map((line, index) => {
-    const lineDiscount = lineDiscounts[index] ?? 0;
-    return {
-      sku: line.sku,
-      label: line.label,
-      unitPriceCents: line.unitPriceCents,
-      quantity: line.quantity,
-      days: line.days,
-      stockUnits: line.stockUnits,
-      lineSubtotalCents: line.lineSubtotalCents,
-      discountCents: lineDiscount,
-      lineTotalCents: line.lineSubtotalCents - lineDiscount,
-    };
+/** A person on Day Passes for 4-5 days may be better off (or only able) to buy an All-Day Pass. */
+function allDayHints(attendees: readonly Attendee[], soldOut: ReadonlySet<ItemId>): string[] {
+  return attendees.flatMap((a) => {
+    const dayId = dayItem(a);
+    const allId = allDayItem(a);
+    if (a.ticket.kind !== 'day' || dayId === undefined || allId === undefined) return [];
+    const dayTotal = CATALOG[dayId].priceCents * a.ticket.days.length;
+    const all = CATALOG[allId];
+    if (dayTotal <= all.priceCents) return [];
+    const n = a.ticket.days.length;
+    const name = `All-Day ${isAdult(a) ? 'Adult' : 'Child'} Pass`;
+    return soldOut.has(allId)
+      ? [`${a.name}: the ${name} is sold out, so ${n} Day Passes (${dollars(dayTotal)}) are the way to go.`]
+      : [`${a.name}: an ${name} (${dollars(all.priceCents)}) is cheaper than ${n} Day Passes (${dollars(dayTotal)}).`];
   });
+}
 
-  const stockIssues: StockIssue[] = [];
-  for (const sku of SKU_IDS) {
-    const requested = stockUsageBySku[sku];
-    if (requested > 0) {
-      const item = catalogMap[sku];
-      if (requested > item.remainingStock) {
-        const message =
-          item.remainingStock === 0
-            ? `${item.label} is sold out (0 remaining).`
-            : `Only ${item.remainingStock} remaining for ${item.label}, but ${requested} requested.`;
-        stockIssues.push({
-          sku,
-          label: item.label,
-          requested,
-          available: item.remainingStock,
-          message,
-        });
-      }
-    }
+function familyPassHints(booking: ValidBooking): string[] {
+  const pass = CATALOG.family.priceCents;
+  return booking.familyPasses.flatMap((p) => {
+    const members = booking.attendees.filter((a) => a.ticket.kind === 'family' && a.ticket.passId === p.id);
+    const individual = members.reduce((sum, a) => {
+      const id = dayItem(a);
+      return sum + (id === undefined ? 0 : CATALOG[id].priceCents);
+    }, 0);
+    return individual < pass
+      ? [`Individual Day Passes would cost ${dollars(individual)} for these ${members.length} people on ${formatFestivalDay(p.day)}, less than the ${dollars(pass)} Family Pass.`]
+      : [];
+  });
+}
+
+function groupFamilyHints(attendees: readonly Attendee[]): string[] {
+  return FESTIVAL_DAYS.flatMap((d) => {
+    const singles = attendees.filter((a) => a.ticket.kind === 'day' && a.ticket.days.length === 1 && a.ticket.days[0] === d);
+    const adults = singles.filter(isAdult).length;
+    const children = singles.filter(isChild).length;
+    return adults >= FAMILY_PASS_MAX_ADULTS && children >= FAMILY_PASS_MAX_CHILDREN
+      ? [`On ${formatFestivalDay(d)}, a Family Pass (${dollars(CATALOG.family.priceCents)}) covers 2 adults and 2 children and costs less than individual Day Passes.`]
+      : [];
+  });
+}
+
+function applyPromo(promo: PromoResult, subtotal: number, lines: readonly QuoteLine[]): { promo: PromoResult; discount: number } {
+  if (promo.status !== 'applied') return { promo, discount: 0 };
+  if (promo.kind === 'percent') return { promo, discount: percentDiscountCents(subtotal, promo.value) };
+  if (promo.kind === 'flat') return { promo, discount: Math.min(promo.value, subtotal) };
+  const kids = lines
+    .filter((l) => l.itemId === 'day-child' || l.itemId === 'allday-child')
+    .reduce((sum, l) => sum + l.totalCents, 0);
+  if (kids === 0) {
+    return {
+      promo: {
+        status: 'not-applicable',
+        code: promo.code,
+        message: `${promo.code} is for children's tickets, and there aren't any in this booking. Your booking will go ahead without a discount.`,
+      },
+      discount: 0,
+    };
   }
+  return { promo, discount: kids };
+}
 
-  const familyPassStockUnits = stockUsageBySku.family_pass;
-  const kidsFreeFamilyTip = Boolean(
-    promo?.valid && promo.kind === "kids_free" && familyPassStockUnits > 0,
-  );
-  const kidsFreeFamilyTipSavingsCents = kidsFreeFamilyTip
-    ? familyPassStockUnits * FAMILY_PASS_KIDS_FREE_SAVINGS_CENTS_PER_DAY
-    : 0;
-  const kidsFreeFamilyTipMessage = kidsFreeFamilyTip
-    ? `Tip: KIDSFREE does not discount Family Pass ($40/day). Switching to 2 Day Pass – Adult ($30/day) + 2 Day Pass – Child (Free) saves ${formatUsd(FAMILY_PASS_KIDS_FREE_SAVINGS_CENTS_PER_DAY)}/day (${formatUsd(kidsFreeFamilyTipSavingsCents)} total).`
-    : null;
+/** `soldOut` is the live set of items with no stock left; hints must never recommend one of them. */
+export function priceBooking(booking: ValidBooking, promo: PromoResult, soldOut: ReadonlySet<ItemId>): Quote {
+  const lines: QuoteLine[] = [
+    ...booking.attendees.flatMap(attendeeLines),
+    ...booking.familyPasses.map((p) => line('family', 1, { day: p.day })),
+    ...(booking.dandiyaQty > 0 ? [line('dandiya', booking.dandiyaQty)] : []),
+  ];
+  const subtotalCents = lines.reduce((sum, l) => sum + l.totalCents, 0);
+  const applied = applyPromo(promo, subtotalCents, lines);
+  const discountCents = Math.min(applied.discount, subtotalCents);
 
-  const { adults: requiredAdults, children: requiredChildren } =
-    getRequiredAttendeeCounts(normalized);
+  // Every line's qty is already its stock unit (person-days, persons, passes, plates, sessions, sticks).
+  const stockNeeded: Partial<Record<ItemId, number>> = {};
+  for (const l of lines) stockNeeded[l.itemId] = (stockNeeded[l.itemId] ?? 0) + l.qty;
 
   return {
-    currency: EVENT_METADATA.currency,
-    lineItems,
-    stockUsageBySku,
-    stockIssues,
-    hasStockIssues: stockIssues.length > 0,
-    coveredDays: getCoveredFestivalDays(normalized),
-    requiredAdults,
-    requiredChildren,
+    lines,
     subtotalCents,
-    childTicketSubtotalCents,
     discountCents,
-    totalCents: Math.max(0, subtotalCents - discountCents),
-    promo,
-    kidsFreeFamilyTip,
-    kidsFreeFamilyTipSavingsCents,
-    kidsFreeFamilyTipMessage,
+    totalCents: subtotalCents - discountCents,
+    promo: applied.promo,
+    hints: [...allDayHints(booking.attendees, soldOut), ...familyPassHints(booking), ...groupFamilyHints(booking.attendees)],
+    stockNeeded,
   };
 }

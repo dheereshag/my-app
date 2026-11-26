@@ -7,15 +7,19 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["void/env"],
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": ["./src/*"],
-      "void/db": ["./.void/db.d.ts"],
-      "@schema": ["./db/schema.ts"],
-      "@schema/*": ["./db/schema/*"],
-      "void/routes": ["./.void/routes.d.ts"]
-    }
+    "types": [
+      "void/env"
+    ],
+    "jsx": "react-jsx"
   },
-  "include": ["src", "pages", "routes", "middleware", "crons", "queues", "db", "tests"]
+  "include": [
+    "src",
+    "pages",
+    "routes",
+    "middleware",
+    "crons",
+    "queues",
+    "db",
+    "tests"
+  ]
 }

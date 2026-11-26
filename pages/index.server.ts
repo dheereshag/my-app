@@ -1,26 +1,14 @@
-import { defineHandler, defineHead, type InferProps } from "void";
-import { isEventBookingClosed } from "@/domain";
-import { listAvailability } from "@/server/inventory";
-import { loadInventory } from "@/server/inventory-store";
+import { defineHead } from 'void';
 
-export type Props = InferProps<typeof loader>;
-
-/** Live stock for the first paint; the booking itself re-checks everything on the server. */
-export const loader = defineHandler(async () => {
-  const bookingClosed = isEventBookingClosed();
-  return {
-    bookingClosed,
-    availability: bookingClosed ? [] : listAvailability(await loadInventory()),
-  };
-});
-
-export const head = defineHead<Props>(() => ({
-  title: "Book tickets | Sharad Utsav 2026",
+export const head = defineHead(() => ({
+  title: 'Book tickets | Sharad Utsav 2026',
+  htmlAttrs: { lang: 'en' },
   meta: [
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     {
-      name: "description",
+      name: 'description',
       content:
-        "Book family tickets, dinner and workshop places for Sharad Utsav 2026 at Radha Krishna Temple, Allen, Texas.",
+        'Book your family’s tickets for Sharad Utsav 2026 at the Radha Krishna Temple in Allen, Texas, 10 to 14 November: day passes, all-day passes, Family Passes, dinner and Garba workshops.',
     },
   ],
 }));

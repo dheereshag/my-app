@@ -1,10 +1,10 @@
-/** Human-readable booking references. The alphabet drops look-alikes (0/O, 1/I/L). */
+// No 0/O/1/I/L: references get read aloud at the gate. Modulo bias is irrelevant for a label.
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const LENGTH = 6;
 
-const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-const REFERENCE_LENGTH = 8;
-
-export function createBookingReference(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(REFERENCE_LENGTH));
-  const code = Array.from(bytes, (byte) => ALPHABET.charAt(byte % ALPHABET.length)).join("");
-  return `SU26-${code}`;
+// ponytail: no retry on a reference collision (~1 in 10^9 per pair); the unique index turns it into a 500
+// and the client's retry with the same idempotency key succeeds. Add a retry loop if volume ever matters.
+export function newReference(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(LENGTH));
+  return `SU26-${Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('')}`;
 }
