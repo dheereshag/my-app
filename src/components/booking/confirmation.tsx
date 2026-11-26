@@ -1,4 +1,5 @@
-import { CircleCheck, Printer } from "lucide-react";
+import { CheckmarkCircle02Icon, PrinterIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { EVENT_METADATA, formatUsd } from "@/domain";
@@ -30,7 +31,7 @@ export function Confirmation({
         aria-labelledby="reference-label"
       >
         <p className="flex items-center gap-2 text-sm font-medium text-success-foreground">
-          <CircleCheck aria-hidden="true" className="size-5" />
+          <HugeiconsIcon icon={CheckmarkCircle02Icon} aria-hidden="true" className="size-5" />
           Booking confirmed
         </p>
         <p id="reference-label" className="text-sm">
@@ -88,7 +89,7 @@ export function Confirmation({
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button type="button" variant="outline" className="h-11" onClick={() => window.print()}>
-          <Printer aria-hidden="true" data-icon="inline-start" />
+          <HugeiconsIcon icon={PrinterIcon} aria-hidden="true" data-icon="inline-start" />
           Print or save
         </Button>
         {allowNewBooking ? (

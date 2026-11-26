@@ -1,4 +1,5 @@
-import { CalendarX2 } from "lucide-react";
+import { CalendarRemove01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EVENT_METADATA } from "@/domain";
@@ -9,11 +10,17 @@ export function EventClosed() {
       <Card className="w-full bg-white/5 ring-white/20">
         <CardHeader>
           <Badge variant="secondary" className="w-fit">
-            <CalendarX2 aria-hidden="true" data-icon="inline-start" />
+            <HugeiconsIcon
+              icon={CalendarRemove01Icon}
+              aria-hidden="true"
+              data-icon="inline-start"
+            />
             Booking closed
           </Badge>
-          <CardTitle className="font-heading text-3xl font-semibold sm:text-4xl">
-            {EVENT_METADATA.name} has ended
+          <CardTitle>
+            <h1 className="font-heading text-3xl font-semibold sm:text-4xl">
+              {EVENT_METADATA.name} has ended
+            </h1>
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground">
             The festival ran {EVENT_METADATA.dateRangeLabel}. New bookings are no longer available.

@@ -5,13 +5,14 @@
  */
 
 import { z } from "zod";
-import { FestivalDateSchema, SKU_IDS } from "../domain";
+import { SKU_IDS } from "../domain";
+import { BookingDateSchema } from "../domain/legacy-booking";
 
 const ConfirmationLineSchema = z.object({
   sku: z.enum(SKU_IDS),
   label: z.string(),
   quantity: z.int(),
-  days: z.array(FestivalDateSchema),
+  days: z.array(BookingDateSchema),
   unitPriceCents: z.int(),
   subtotalCents: z.int(),
   discountCents: z.int(),
@@ -37,7 +38,7 @@ export const BookingConfirmationSchema = z.object({
       kind: z.enum(["adult", "child", "toddler"]),
       fullName: z.string(),
       age: z.int(),
-      attendingDays: z.array(FestivalDateSchema).nullable().default(null),
+      attendingDays: z.array(BookingDateSchema).nullable().default(null),
     }),
   ),
 });

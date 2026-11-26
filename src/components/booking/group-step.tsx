@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { getRequiredAttendeeCounts } from "@/domain";
 import { validateGroup } from "@/store/booking-request";
@@ -40,7 +41,7 @@ export function GroupStep() {
       <StepNav onBack={() => setStep("tickets")}>
         <Button type="button" className="h-11 px-6 text-base" onClick={handleContinue}>
           Review order
-          <ArrowRight aria-hidden="true" data-icon="inline-end" />
+          <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" data-icon="inline-end" />
         </Button>
       </StepNav>
     </div>

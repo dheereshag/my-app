@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FESTIVAL_DATES, GARBA_WORKSHOP_DATES } from "./catalog";
+import { FESTIVAL_DATES, GARBA_WORKSHOP_DATES } from "./calendar";
 
 const DraftQuantitySchema = z.int().min(0).default(0);
 const DraftFestivalDaysSchema = z

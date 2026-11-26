@@ -1,4 +1,5 @@
-import { CircleAlert, Lightbulb } from "lucide-react";
+import { AlertCircleIcon, BulbIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -54,7 +55,7 @@ function QuoteDetails({ quote, dimmed }: { quote: QuoteResponse; dimmed: boolean
 
       {quote.stockIssues.length > 0 ? (
         <Alert variant="destructive" role="alert">
-          <CircleAlert aria-hidden="true" />
+          <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" />
           <AlertTitle>Not enough left</AlertTitle>
           <AlertDescription>
             {quote.stockIssues.map((issue) => (
@@ -68,7 +69,7 @@ function QuoteDetails({ quote, dimmed }: { quote: QuoteResponse; dimmed: boolean
 
       {quote.tip ? (
         <Alert>
-          <Lightbulb aria-hidden="true" />
+          <HugeiconsIcon icon={BulbIcon} aria-hidden="true" />
           <AlertDescription>{quote.tip}</AlertDescription>
         </Alert>
       ) : null}
@@ -103,7 +104,7 @@ export function OrderSummary({ quote, onRetry }: OrderSummaryProps) {
 
       {quote.status === "failed" ? (
         <Alert variant="destructive" role="alert">
-          <CircleAlert aria-hidden="true" />
+          <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" />
           <AlertTitle>We couldn't update your total</AlertTitle>
           <AlertDescription>
             Check your connection. Your choices are saved.

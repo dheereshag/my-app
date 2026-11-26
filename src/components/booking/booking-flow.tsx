@@ -11,6 +11,7 @@ import { EventClosed } from "./event-closed";
 import { GroupStep } from "./group-step";
 import { MobileSummaryBar } from "./mobile-summary-bar";
 import { OrderSummary } from "./order-summary";
+import { PreviousDraftRecovery } from "./previous-draft-recovery";
 import { ReviewStep } from "./review-step";
 import { TicketStep } from "./ticket-step";
 
@@ -30,13 +31,15 @@ export function BookingFlow({
 }) {
   const step = useBookingStore((store) => store.step);
   const confirmation = useBookingStore((store) => store.confirmation);
+  const previousDraft = useBookingStore((store) => store.previousDraft);
+  const startOver = useBookingStore((store) => store.startOver);
   const submit = useBookingStore((store) => store.submit);
   const { remaining, refresh } = useAvailability(availability);
   const { state: quote, retry } = useQuote();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isFirstRender = useRef(true);
 
-  useRestoreBooking();
+  const restore = useRestoreBooking();
 
   // Moving between steps: put focus on the new heading so screen-reader and keyboard users land at the top.
   useEffect(() => {
@@ -55,6 +58,18 @@ export function BookingFlow({
       void refresh();
     }
   }, [step, stockConflict, refresh]);
+
+  if (restore.failed || (previousDraft !== null && confirmation === null)) {
+    return (
+      <PreviousDraftRecovery
+        restoreFailed={restore.failed}
+        onStartOver={() => {
+          startOver();
+          restore.clearFailure();
+        }}
+      />
+    );
+  }
 
   if (bookingClosed && confirmation === null) {
     return <EventClosed />;
@@ -78,9 +93,11 @@ export function BookingFlow({
           </p>
           <h1 className="font-heading text-4xl font-semibold sm:text-5xl">{EVENT_METADATA.name}</h1>
           <p className="max-w-2xl text-lg text-muted-foreground">
-            {bookingClosed
-              ? `This event has ended. Your booking for ${EVENT_METADATA.dateRangeLabel} is shown below.`
-              : `Book your family's tickets for ${EVENT_METADATA.dateRangeLabel} in one go. Choose tickets, tell us who is coming, and get your confirmation.`}
+            {previousDraft !== null && confirmation !== null
+              ? `This confirmation is for the original festival dates. New bookings are for ${EVENT_METADATA.dateRangeLabel}.`
+              : bookingClosed
+                ? `This event has ended. Your booking for ${EVENT_METADATA.dateRangeLabel} is shown below.`
+                : `Book your family's tickets for ${EVENT_METADATA.dateRangeLabel} in one go. Choose tickets, tell us who is coming, and get your confirmation.`}
           </p>
         </div>
       </header>

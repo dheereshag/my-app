@@ -1,101 +1,14 @@
 /**
- * Sharad Utsav 2026 festival catalog, calendar constants, age boundaries, and promo definitions.
+ * Sharad Utsav 2026 festival catalog, age boundaries, and promo definitions.
  * Pure TypeScript module with zero UI or database dependencies.
  */
 
-export const EVENT_METADATA = {
-  name: "Sharad Utsav 2026",
-  location: "Radha Krishna Temple, Allen, Texas",
-  currency: "USD",
-  dateRangeLabel: "Tue 10 Nov 2026 - Sat 14 Nov 2026",
-  totalDays: 5,
-} as const;
-
-export const FESTIVAL_DATES = [
-  "2026-11-10",
-  "2026-11-11",
-  "2026-11-12",
-  "2026-11-13",
-  "2026-11-14",
-] as const;
-
-// Midnight after the final festival day in Allen, Texas (CST).
-export const EVENT_BOOKING_CLOSES_AT = "2026-11-15T06:00:00.000Z";
-
-export function isEventBookingClosed(now: Date = new Date()): boolean {
-  return now.getTime() >= Date.parse(EVENT_BOOKING_CLOSES_AT);
-}
-
-export type FestivalDate = (typeof FESTIVAL_DATES)[number];
-
-export const GARBA_WORKSHOP_DATES = ["2026-11-11", "2026-11-13"] as const;
-
-export type GarbaWorkshopDate = (typeof GARBA_WORKSHOP_DATES)[number];
-
-export interface FestivalDayInfo {
-  readonly date: FestivalDate;
-  readonly weekday: string;
-  readonly shortDate: string;
-  readonly label: string;
-  readonly dayNumber: number;
-  readonly hasGarbaWorkshop: boolean;
-}
-
-export const FESTIVAL_DAYS: readonly FestivalDayInfo[] = [
-  {
-    date: "2026-11-10",
-    weekday: "Tue",
-    shortDate: "Nov 10",
-    label: "Tue, Nov 10",
-    dayNumber: 1,
-    hasGarbaWorkshop: false,
-  },
-  {
-    date: "2026-11-11",
-    weekday: "Wed",
-    shortDate: "Nov 11",
-    label: "Wed, Nov 11",
-    dayNumber: 2,
-    hasGarbaWorkshop: true,
-  },
-  {
-    date: "2026-11-12",
-    weekday: "Thu",
-    shortDate: "Nov 12",
-    label: "Thu, Nov 12",
-    dayNumber: 3,
-    hasGarbaWorkshop: false,
-  },
-  {
-    date: "2026-11-13",
-    weekday: "Fri",
-    shortDate: "Nov 13",
-    label: "Fri, Nov 13",
-    dayNumber: 4,
-    hasGarbaWorkshop: true,
-  },
-  {
-    date: "2026-11-14",
-    weekday: "Sat",
-    shortDate: "Nov 14",
-    label: "Sat, Nov 14",
-    dayNumber: 5,
-    hasGarbaWorkshop: false,
-  },
-] as const;
-
-const FESTIVAL_DATE_SET = new Set<string>(FESTIVAL_DATES);
-const GARBA_WORKSHOP_DATE_SET = new Set<string>(GARBA_WORKSHOP_DATES);
-
-/** Type guard checking whether a string is one of the 5 allowed festival dates. */
-export function isFestivalDate(value: string): value is FestivalDate {
-  return FESTIVAL_DATE_SET.has(value);
-}
-
-/** Type guard checking whether a string is a valid Garba Workshop date (Nov 11 or Nov 13). */
-export function isGarbaWorkshopDate(value: string): value is GarbaWorkshopDate {
-  return GARBA_WORKSHOP_DATE_SET.has(value);
-}
+import {
+  EVENT_METADATA,
+  FESTIVAL_DATES,
+  GARBA_WORKSHOP_DATES,
+  type FestivalDate,
+} from "./calendar";
 
 export const BOOKER_MIN_AGE = 18;
 export const ADULT_MIN_AGE = 12;
@@ -158,7 +71,7 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
     sku: "day_pass_adult",
     category: "entry",
     label: "Day Pass – Adult",
-    description: "Ages 12 and above. Choose any 1 to 5 festival evenings.",
+    description: `Ages 12 and above. Choose any of the ${EVENT_METADATA.totalDays} festival days.`,
     priceCents: 1500,
     unitLabel: "per person, per day",
     initialStock: 380,
@@ -172,7 +85,7 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
     sku: "day_pass_child",
     category: "entry",
     label: "Day Pass – Child",
-    description: "Ages 5 to 11. Choose any 1 to 5 festival evenings.",
+    description: `Ages 5 to 11. Choose any of the ${EVENT_METADATA.totalDays} festival days.`,
     priceCents: 800,
     unitLabel: "per person, per day",
     initialStock: 260,
@@ -186,9 +99,9 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
     sku: "all_day_adult",
     category: "entry",
     label: "All-Day Pass – Adult",
-    description: "Ages 12 and above. Covers all 5 festival days (Nov 10–14).",
+    description: `Ages 12 and above. Covers all ${EVENT_METADATA.totalDays} festival days.`,
     priceCents: 6000,
-    unitLabel: "flat for all 5 days",
+    unitLabel: `flat for all ${EVENT_METADATA.totalDays} days`,
     initialStock: 0,
     remainingStock: 0,
     ageGroup: "adult",
@@ -200,9 +113,9 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
     sku: "all_day_child",
     category: "entry",
     label: "All-Day Pass – Child",
-    description: "Ages 5 to 11. Covers all 5 festival days (Nov 10–14).",
+    description: `Ages 5 to 11. Covers all ${EVENT_METADATA.totalDays} festival days.`,
     priceCents: 3000,
-    unitLabel: "flat for all 5 days",
+    unitLabel: `flat for all ${EVENT_METADATA.totalDays} days`,
     initialStock: 140,
     remainingStock: 140,
     ageGroup: "child",
@@ -259,7 +172,7 @@ export const CATALOG_ITEMS: readonly CatalogItem[] = [
     category: "extra",
     label: "Garba Workshop",
     description:
-      "Guided Garba workshop on Wed Nov 11 & Fri Nov 13 only (shared 2-spot pool). Requires entry coverage (ages 5+) on the chosen night.",
+      "Guided Garba workshop on Nov 27 and Nov 29 only (shared 2-spot pool). Requires entry coverage (ages 5+) on the chosen night.",
     priceCents: 2000,
     unitLabel: "per spot",
     initialStock: 2,
@@ -303,102 +216,3 @@ export function createCatalogMap(overrides?: CatalogItemOverrides): CatalogMap {
 }
 
 export const INITIAL_CATALOG_MAP: CatalogMap = createCatalogMap();
-
-export type PromoRuleKind = "percent" | "flat_cents" | "kids_free";
-
-export interface PromoDefinition {
-  readonly code: string;
-  readonly kind: PromoRuleKind;
-  readonly value: number;
-  readonly description: string;
-  readonly expiresAt: string | null;
-  readonly maxUses: number | null;
-  readonly usedCount: number;
-  readonly isActive: boolean;
-}
-
-export type PromoStateMap = Record<string, PromoDefinition>;
-
-const CANONICAL_PROMOS: readonly PromoDefinition[] = [
-  {
-    code: "SEVA10",
-    kind: "percent",
-    value: 10,
-    description: "10% off the whole booking",
-    expiresAt: null,
-    maxUses: null,
-    usedCount: 0,
-    isActive: true,
-  },
-  {
-    code: "FLAT20",
-    kind: "flat_cents",
-    value: 2000,
-    description: "$20 off the whole booking",
-    expiresAt: null,
-    maxUses: null,
-    usedCount: 0,
-    isActive: true,
-  },
-  {
-    code: "KIDSFREE",
-    kind: "kids_free",
-    value: 100,
-    description: "Makes Day Pass – Child and All-Day Pass – Child tickets free",
-    expiresAt: null,
-    maxUses: null,
-    usedCount: 0,
-    isActive: true,
-  },
-  {
-    code: "EXPIRED5",
-    kind: "percent",
-    value: 5,
-    description: "5% off (expired Oct 31, 2026)",
-    expiresAt: "2026-10-31T23:59:59Z",
-    maxUses: null,
-    usedCount: 0,
-    isActive: true,
-  },
-  {
-    code: "MAXEDOUT",
-    kind: "flat_cents",
-    value: 1000,
-    description: "$10 off (redemption limit reached)",
-    expiresAt: null,
-    maxUses: 100,
-    usedCount: 100,
-    isActive: true,
-  },
-] as const;
-
-/** Builds a PromoStateMap with optional per-code overrides (for tests or DB hydration). */
-export function createPromoMap(
-  overrides?: Partial<Record<string, Partial<PromoDefinition>>>,
-): PromoStateMap {
-  const map: PromoStateMap = {};
-  for (const promo of CANONICAL_PROMOS) {
-    const patch = overrides?.[promo.code];
-    map[promo.code] = patch ? { ...promo, ...patch } : { ...promo };
-  }
-  if (overrides) {
-    for (const [rawKey, patch] of Object.entries(overrides)) {
-      const key = rawKey.trim().toUpperCase();
-      if (!map[key] && patch && patch.kind && patch.code) {
-        map[key] = {
-          code: patch.code.trim().toUpperCase(),
-          kind: patch.kind,
-          value: patch.value ?? 0,
-          description: patch.description ?? "",
-          expiresAt: patch.expiresAt ?? null,
-          maxUses: patch.maxUses ?? null,
-          usedCount: patch.usedCount ?? 0,
-          isActive: patch.isActive ?? true,
-        };
-      }
-    }
-  }
-  return map;
-}
-
-export const INITIAL_PROMO_CODES: PromoStateMap = createPromoMap();

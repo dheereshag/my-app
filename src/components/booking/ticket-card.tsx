@@ -9,7 +9,7 @@ interface TicketCardProps {
   readonly sku: SkuId;
   /** Units left on the server. Zero shows "Sold out". */
   readonly remaining: number;
-  /** Extra line under the description, e.g. "Covers all 5 days." */
+  /** Extra line under the description. */
   readonly note?: string;
   readonly children: ReactNode;
 }

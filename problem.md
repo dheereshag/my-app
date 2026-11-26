@@ -14,9 +14,9 @@ The hard part of this problem is not the screens. It is the **rules** — and ma
 | --- | --- |
 | Event name | Sharad Utsav 2026 |
 | Location | Radha Krishna Temple, Allen, Texas |
-| Festival dates | **Tue 10 Nov 2026 → Sat 14 Nov 2026** (5 days) |
+| Festival dates | **Thu 26 Nov 2026 → Thu 10 Dec 2026** (15 days) |
 | Currency | USD only |
-| Booking closes | Midnight after the final festival day (Nov 15, 2026, Central Time) |
+| Booking closes | Midnight after the final festival day (Dec 11, 2026, Central Time) |
 
 ### Colour theme
 
@@ -51,8 +51,8 @@ A few notes:
 | --- | --- | --- | --- |
 | Day Pass – Adult | $15 per person, per day | Ages 12 and above | Any day or days the person chooses |
 | Day Pass – Child | $8 per person, per day | Ages 5 to 11 | Any day or days the person chooses |
-| All-Day Pass – Adult | $60 flat | Ages 12 and above | All 5 days. Cannot be changed. |
-| All-Day Pass – Child | $30 flat | Ages 5 to 11 | All 5 days. Cannot be changed. |
+| All-Day Pass – Adult | $60 flat | Ages 12 and above | All 15 days. Cannot be changed. |
+| All-Day Pass – Child | $30 flat | Ages 5 to 11 | All 15 days. Cannot be changed. |
 | Family Pass | $40 flat | Covers 2 adults and 2 children | One single day |
 
 ### Extras
@@ -61,7 +61,7 @@ A few notes:
 | --- | --- | --- |
 | Dandiya Sticks (pair) | $5 each | A souvenir. Any reasonable quantity. |
 | Dinner Plate | $12 | Priced **per person, per day** |
-| Garba Workshop | $20 each | Runs on **Nov 11 and Nov 13 only** |
+| Garba Workshop | $20 each | Runs on **Nov 27 and Nov 29 only** |
 
 ### How much of each we have left
 

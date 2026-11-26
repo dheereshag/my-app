@@ -1,4 +1,5 @@
-import { Check } from "lucide-react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Progress } from "@/components/ui/progress";
 import type { Step } from "@/store/booking-store";
 
@@ -38,7 +39,7 @@ export function BookingStepper({ step }: { readonly step: Step }) {
                 aria-hidden="true"
                 className="flex size-6 shrink-0 items-center justify-center rounded-full border border-current text-xs"
               >
-                {done ? <Check className="size-3.5" /> : index + 1}
+                {done ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5" /> : index + 1}
               </span>
               <span className={current ? undefined : "sr-only sm:not-sr-only"}>
                 {entry.label}

@@ -10,6 +10,7 @@
 import { attendees, bookings, promoUsage, stock } from "@schema";
 import { db, eq, sql, type BatchItem } from "void/db";
 import type { CreateBookingRequest, StockIssue } from "../domain";
+import type { LegacyBookingReplayRequest } from "../domain/legacy-booking";
 import { BookingConfirmationSchema, type BookingConfirmation } from "./confirmation";
 import { loadInventory } from "./inventory-store";
 import {
@@ -30,9 +31,15 @@ export type CreateBookingOutcome =
   | { readonly kind: "promo_rejected"; readonly message: string }
   | { readonly kind: "event_closed"; readonly message: string };
 
-type StoredBooking = typeof bookings.$inferSelect;
+export type ReplayOutcome =
+  | { readonly kind: "replayed"; readonly confirmation: BookingConfirmation }
+  | { readonly kind: "idempotency_conflict" }
+  | { readonly kind: "not_found" };
 
-async function hashRequest(request: CreateBookingRequest): Promise<string> {
+type StoredBooking = typeof bookings.$inferSelect;
+type ReplayRequest = CreateBookingRequest | LegacyBookingReplayRequest;
+
+async function hashRequest(request: ReplayRequest): Promise<string> {
   const payload = JSON.stringify({
     selection: request.selection,
     promoCode: request.promoCode ?? null,
@@ -49,7 +56,10 @@ async function findByIdempotencyKey(key: string): Promise<StoredBooking | null> 
 }
 
 /** Same key + same request returns the original confirmation; same key + different request is refused. */
-function replayOutcome(existing: StoredBooking, requestHash: string): CreateBookingOutcome {
+function replayOutcome(
+  existing: StoredBooking,
+  requestHash: string,
+): Exclude<ReplayOutcome, { kind: "not_found" }> {
   if (existing.requestHash !== requestHash) {
     return { kind: "idempotency_conflict" };
   }
@@ -57,6 +67,14 @@ function replayOutcome(existing: StoredBooking, requestHash: string): CreateBook
     kind: "replayed",
     confirmation: BookingConfirmationSchema.parse(JSON.parse(existing.confirmationJson)),
   };
+}
+
+export async function replayBooking(request: ReplayRequest): Promise<ReplayOutcome> {
+  const existing = await findByIdempotencyKey(request.idempotencyKey);
+  if (existing === null) {
+    return { kind: "not_found" };
+  }
+  return replayOutcome(existing, await hashRequest(request));
 }
 
 function rejectionOutcome(rejection: BookingRejection): CreateBookingOutcome {

@@ -6,6 +6,7 @@
 import { fetch, FetchError } from "void/client";
 import { z } from "zod";
 import type { CreateBookingRequest, QuoteRequest } from "../domain";
+import type { LegacyBookingReplayRequest } from "../domain/legacy-booking";
 import { BookingConfirmationSchema, type BookingConfirmation } from "../server/confirmation";
 import type { QuoteResponse } from "../server/quote";
 
@@ -21,6 +22,10 @@ export type BookingFailure =
 export type BookingResult =
   | { readonly ok: true; readonly confirmation: BookingConfirmation }
   | { readonly ok: false; readonly failure: BookingFailure };
+
+export type ReplayCheckResult =
+  | { readonly ok: true; readonly confirmation: BookingConfirmation }
+  | { readonly ok: false; readonly message: string };
 
 const StockConflictBodySchema = z.object({
   code: z.literal("stock_conflict"),
@@ -79,6 +84,61 @@ export async function postBooking(request: CreateBookingRequest): Promise<Bookin
     return { ok: true, confirmation: BookingConfirmationSchema.parse(response) };
   } catch (error) {
     return { ok: false, failure: describeFailure(error) };
+  }
+}
+
+export async function checkPreviousBooking(
+  request: LegacyBookingReplayRequest,
+): Promise<ReplayCheckResult> {
+  try {
+    const response = await fetch("/api/bookings/replay", {
+      method: "POST",
+      body: request,
+      timeout: BOOKING_TIMEOUT_MS,
+    });
+    const parsed = BookingConfirmationSchema.safeParse(response);
+    return parsed.success
+      ? { ok: true, confirmation: parsed.data }
+      : {
+          ok: false,
+          message: "The server returned an invalid confirmation. Please check with the organizer.",
+        };
+  } catch (error) {
+    if (error instanceof FetchError) {
+      if (error.status === 404) {
+        return {
+          ok: false,
+          message:
+            "No completed booking was found yet. If you submitted recently, wait and check again before starting over.",
+        };
+      }
+      if (error.status === 409) {
+        return {
+          ok: false,
+          message:
+            "These saved details do not match the previous booking. Please check with the organizer.",
+        };
+      }
+      if (error.status === 400) {
+        return {
+          ok: false,
+          message:
+            "These saved details couldn't be checked. Please contact the organizer before starting over.",
+        };
+      }
+      return {
+        ok: false,
+        message:
+          error.status === undefined
+            ? "We couldn't reach the server. Check your connection and try again."
+            : "The server couldn't check your previous booking. Please try again.",
+      };
+    }
+    console.error("Could not check the previous booking.", error);
+    return {
+      ok: false,
+      message: "We couldn't check the previous booking. Please contact the organizer.",
+    };
   }
 }
 

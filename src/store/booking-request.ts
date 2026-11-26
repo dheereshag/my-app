@@ -29,6 +29,14 @@ export interface BookerDraft {
   readonly isAttendingAsAdult: boolean;
 }
 
+export const EMPTY_BOOKER: BookerDraft = {
+  fullName: "",
+  email: "",
+  phone: "",
+  age: undefined,
+  isAttendingAsAdult: true,
+};
+
 export interface BookingDraft {
   readonly selection: TicketSelection;
   readonly promoCode: string;

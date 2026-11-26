@@ -20,12 +20,18 @@ import {
 import type { BookingConfirmation } from "../server/confirmation";
 import { postBooking, type BookingFailure } from "./booking-api";
 import {
+  EMPTY_BOOKER,
   createRandomId,
   isBookerAttendingAsAdult,
   validateDraft,
   type BookerDraft,
 } from "./booking-request";
-import { PersistedDraftSchema } from "./persisted-draft";
+import {
+  PersistedDraftSchema,
+  PreviousDraftMigrationSchema,
+  type LegacyPersistedDraft,
+} from "./persisted-draft";
+import { checkSavedBooking, type PreviousCheckState } from "./previous-booking";
 import { updateSelection } from "./selection";
 
 export type Step = "tickets" | "group" | "review" | "confirmed";
@@ -48,6 +54,8 @@ interface BookingState {
   readonly idempotencyKey: string;
   readonly confirmation: BookingConfirmation | null;
   readonly submit: SubmitState;
+  readonly previousDraft: LegacyPersistedDraft | null;
+  readonly previousCheck: PreviousCheckState;
 }
 
 interface BookingActions {
@@ -60,19 +68,12 @@ interface BookingActions {
   addToddler: () => void;
   updateToddler: (id: string, patch: Partial<Omit<ToddlerDraft, "id">>) => void;
   removeToddler: (id: string) => void;
+  checkPreviousBooking: () => Promise<void>;
   submitBooking: () => Promise<void>;
   startOver: () => void;
 }
 
 export type BookingStore = BookingState & BookingActions;
-
-const EMPTY_BOOKER: BookerDraft = {
-  fullName: "",
-  email: "",
-  phone: "",
-  age: undefined,
-  isAttendingAsAdult: true,
-};
 
 function freshState(): BookingState {
   return {
@@ -84,6 +85,8 @@ function freshState(): BookingState {
     idempotencyKey: createRandomId("booking"),
     confirmation: null,
     submit: { status: "idle" },
+    previousDraft: null,
+    previousCheck: { status: "idle" },
   };
 }
 
@@ -198,6 +201,26 @@ export const useBookingStore = create<BookingStore>()(
           return { selection, attendees: { ...state.attendees, toddlers } };
         }),
 
+      checkPreviousBooking: async () => {
+        const state = get();
+        const previous = state.previousDraft;
+        if (previous === null || state.previousCheck.status === "checking") {
+          return;
+        }
+        set({ previousCheck: { status: "checking" } });
+        const result = await checkSavedBooking(previous);
+        if (!result.ok) {
+          set({ previousCheck: { status: "failed", message: result.message } });
+          return;
+        }
+        set({
+          previousDraft: { ...previous, confirmation: result.confirmation },
+          confirmation: result.confirmation,
+          previousCheck: { status: "idle" },
+          step: "confirmed",
+        });
+      },
+
       submitBooking: async () => {
         // Single flight: a second click while a request is running does nothing.
         if (get().submit.status === "submitting") {
@@ -238,7 +261,7 @@ export const useBookingStore = create<BookingStore>()(
     }),
     {
       name: "sharad-utsav-2026-booking",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => sessionStorage),
       // The page is server-rendered, so storage is read after mount (see useRestoreBooking).
       skipHydration: true,
@@ -249,16 +272,28 @@ export const useBookingStore = create<BookingStore>()(
         attendees: state.attendees,
         idempotencyKey: state.idempotencyKey,
         confirmation: state.confirmation,
+        previousDraft: state.previousDraft,
       }),
+      migrate: (persisted, version) => {
+        if (version !== 1) {
+          throw new Error(`Unsupported saved booking version: ${version}`);
+        }
+        return PreviousDraftMigrationSchema.parse(persisted);
+      },
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error("Could not restore the saved booking.", error);
+        }
+      },
       merge: (persisted, current) => {
-        const parsed = PersistedDraftSchema.safeParse(persisted);
-        if (!parsed.success) {
+        if (persisted === undefined) {
           return current;
         }
+        const parsed = PersistedDraftSchema.parse(persisted);
         return {
           ...current,
-          ...parsed.data,
-          step: parsed.data.confirmation ? "confirmed" : current.step,
+          ...parsed,
+          step: parsed.confirmation ? "confirmed" : current.step,
         };
       },
     },

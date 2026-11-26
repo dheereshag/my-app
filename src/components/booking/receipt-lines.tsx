@@ -7,7 +7,8 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { cn } from "@/lib/utils";
-import type { FestivalDate, SkuId } from "@/domain";
+import type { SkuId } from "@/domain";
+import type { BookingDate } from "@/domain/legacy-booking";
 import { formatUsd } from "@/domain";
 import { formatDays } from "./day-labels";
 
@@ -15,7 +16,7 @@ export interface ReceiptLine {
   readonly sku: SkuId;
   readonly label: string;
   readonly quantity: number;
-  readonly days: readonly FestivalDate[];
+  readonly days: readonly BookingDate[];
   readonly subtotalCents: number;
 }
 

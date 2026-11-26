@@ -40,7 +40,7 @@ describe("booking request and draft compatibility", () => {
     const draft: BookingDraft = {
       selection: {
         ...createEmptySelection(),
-        day_pass_adult: { quantity: 1, days: ["2026-11-11"] },
+        day_pass_adult: { quantity: 1, days: ["2026-11-27"] },
         promoCode: "STALE".repeat(10),
       },
       promoCode: "  SEVA10  ",
@@ -68,14 +68,14 @@ describe("booking request and draft compatibility", () => {
         ...draft,
         selection: {
           ...draft.selection,
-          day_pass_adult: { quantity: 1, days: ["2026-11-13", "2026-11-11"] },
+          day_pass_adult: { quantity: 1, days: ["2026-11-29", "2026-11-27"] },
         },
       },
       "booking-original",
     );
     expect(unsorted.valid && unsorted.request.selection.day_pass_adult.days).toEqual([
-      "2026-11-13",
-      "2026-11-11",
+      "2026-11-29",
+      "2026-11-27",
     ]);
 
     const tampered = { ...draft, selection: { ...draft.selection, totalCents: 1 } };
@@ -119,7 +119,7 @@ describe("updateSelection keeps a selection self-consistent", () => {
   it("clears days when a day ticket quantity drops to zero", () => {
     const withTickets = updateSelection(
       base,
-      { day_pass_adult: { quantity: 2, days: ["2026-11-11"] } },
+      { day_pass_adult: { quantity: 2, days: ["2026-11-27"] } },
       [],
     );
     const cleared = updateSelection(withTickets, { day_pass_adult: { quantity: 0, days: [] } }, []);
@@ -130,18 +130,18 @@ describe("updateSelection keeps a selection self-consistent", () => {
     const full = updateSelection(
       base,
       {
-        day_pass_adult: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
-        dinner_plate: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
-        garba_workshop: { quantity: 1, days: ["2026-11-11"] },
+        day_pass_adult: { quantity: 2, days: ["2026-11-27", "2026-11-28"] },
+        dinner_plate: { quantity: 2, days: ["2026-11-27", "2026-11-28"] },
+        garba_workshop: { quantity: 1, days: ["2026-11-27"] },
       },
       [],
     );
     const narrowed = updateSelection(
       full,
-      { day_pass_adult: { quantity: 2, days: ["2026-11-12"] } },
+      { day_pass_adult: { quantity: 2, days: ["2026-11-28"] } },
       [],
     );
-    expect(narrowed.dinner_plate.days).toEqual(["2026-11-12"]);
+    expect(narrowed.dinner_plate.days).toEqual(["2026-11-28"]);
     expect(narrowed.garba_workshop).toEqual({ quantity: 0, days: [] });
   });
 
@@ -149,16 +149,16 @@ describe("updateSelection keeps a selection self-consistent", () => {
     const selection = updateSelection(
       base,
       {
-        day_pass_adult: { quantity: 2, days: ["2026-11-11"] },
-        dinner_plate: { quantity: 9, days: ["2026-11-11"] },
-        garba_workshop: { quantity: 9, days: ["2026-11-11"] },
+        day_pass_adult: { quantity: 2, days: ["2026-11-27"] },
+        dinner_plate: { quantity: 9, days: ["2026-11-27"] },
+        garba_workshop: { quantity: 9, days: ["2026-11-27"] },
       },
       [
         {
           id: "toddler-1",
           fullName: "Mira",
           age: 2,
-          attendingDays: ["2026-11-11"],
+          attendingDays: ["2026-11-27"],
         },
       ],
     );
@@ -170,8 +170,8 @@ describe("updateSelection keeps a selection self-consistent", () => {
     const selection = updateSelection(
       base,
       {
-        day_pass_adult: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
-        dinner_plate: { quantity: 5, days: ["2026-11-11", "2026-11-12"] },
+        day_pass_adult: { quantity: 2, days: ["2026-11-27", "2026-11-28"] },
+        dinner_plate: { quantity: 5, days: ["2026-11-27", "2026-11-28"] },
       },
       [],
     );
@@ -186,16 +186,16 @@ describe("booking store", () => {
   });
 
   it("keeps the attendee list matched to the tickets as the person changes their mind", () => {
-    store().setSelection({ day_pass_adult: { quantity: 3, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_adult: { quantity: 3, days: ["2026-11-27"] } });
     expect(store().attendees.adults).toHaveLength(2); // booker attends as the third adult
 
     const firstId = store().attendees.adults[0]?.id ?? "";
     store().updateAdult(firstId, { fullName: "Ravi Patel", age: 42 });
 
-    store().setSelection({ day_pass_child: { quantity: 2, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_child: { quantity: 2, days: ["2026-11-27"] } });
     expect(store().attendees.children).toHaveLength(2);
 
-    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-27"] } });
     expect(store().attendees.adults).toHaveLength(1);
     expect(store().attendees.adults[0]).toMatchObject({ id: firstId, fullName: "Ravi Patel" });
 
@@ -208,21 +208,21 @@ describe("booking store", () => {
 
   it("clears toddler dates when entry coverage is removed", () => {
     store().setSelection({
-      day_pass_adult: { quantity: 2, days: ["2026-11-11", "2026-11-12"] },
+      day_pass_adult: { quantity: 2, days: ["2026-11-27", "2026-11-28"] },
     });
     store().addToddler();
     const toddlerId = store().attendees.toddlers[0]?.id ?? "";
-    store().updateToddler(toddlerId, { attendingDays: ["2026-11-11", "2026-11-12"] });
+    store().updateToddler(toddlerId, { attendingDays: ["2026-11-27", "2026-11-28"] });
 
     store().setSelection({
-      day_pass_adult: { quantity: 2, days: ["2026-11-12"] },
+      day_pass_adult: { quantity: 2, days: ["2026-11-28"] },
     });
 
-    expect(store().attendees.toddlers[0]?.attendingDays).toEqual(["2026-11-12"]);
+    expect(store().attendees.toddlers[0]?.attendingDays).toEqual(["2026-11-28"]);
   });
 
   it("sends the same booking only once when Pay is clicked twice", async () => {
-    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-27"] } });
     store().setBooker({
       fullName: "Asha Patel",
       email: "asha@example.com",
@@ -252,14 +252,14 @@ describe("booking store", () => {
   });
 
   it("does not call the server for an incomplete booking", async () => {
-    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-27"] } });
     await store().submitBooking();
     expect(postBooking).not.toHaveBeenCalled();
     expect(store().submit).toMatchObject({ status: "failed", failure: { reason: "invalid" } });
   });
 
   it("returns to the tickets step when stock changed, and keeps the same key for retries", async () => {
-    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-11"] } });
+    store().setSelection({ day_pass_adult: { quantity: 2, days: ["2026-11-27"] } });
     store().setBooker({
       fullName: "Asha Patel",
       email: "asha@example.com",

@@ -1,4 +1,5 @@
-import { CircleAlert, CircleCheck } from "lucide-react";
+import { AlertCircleIcon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { QuoteState } from "@/hooks/use-quote";
@@ -41,9 +42,17 @@ export function PromoField({ quote }: PromoFieldProps) {
             }
           >
             {promo.valid ? (
-              <CircleCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0"
+              />
             ) : (
-              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0"
+              />
             )}
             {promo.message}
           </span>

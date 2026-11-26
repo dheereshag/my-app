@@ -1,4 +1,5 @@
-import { Minus, Plus } from "lucide-react";
+import { Add01Icon, MinusSignIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 
 interface QuantityStepperProps {
@@ -22,7 +23,7 @@ export function QuantityStepper({ label, value, max, disabled, onChange }: Quant
         disabled={disabled || value <= 0}
         onClick={() => onChange(value - 1)}
       >
-        <Minus aria-hidden="true" />
+        <HugeiconsIcon icon={MinusSignIcon} aria-hidden="true" />
       </Button>
       <output aria-live="polite" className="w-10 text-center text-lg font-semibold tabular-nums">
         {value}
@@ -36,7 +37,7 @@ export function QuantityStepper({ label, value, max, disabled, onChange }: Quant
         disabled={disabled || value >= max}
         onClick={() => onChange(value + 1)}
       >
-        <Plus aria-hidden="true" />
+        <HugeiconsIcon icon={Add01Icon} aria-hidden="true" />
       </Button>
     </div>
   );

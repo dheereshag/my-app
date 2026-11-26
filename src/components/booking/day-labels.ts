@@ -1,7 +1,18 @@
-import { FESTIVAL_DAYS, FESTIVAL_DATES, type FestivalDate } from "@/domain";
+import { EVENT_METADATA, FESTIVAL_DAYS, FESTIVAL_DATES, type FestivalDate } from "@/domain";
+import type { BookingDate } from "@/domain/legacy-booking";
 
-export function dayLabel(date: FestivalDate): string {
-  return FESTIVAL_DAYS.find((day) => day.date === date)?.label ?? date;
+const historicalDateFormat = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+export function dayLabel(date: BookingDate): string {
+  return (
+    FESTIVAL_DAYS.find((day) => day.date === date)?.label ??
+    historicalDateFormat.format(new Date(`${date}T00:00:00Z`))
+  );
 }
 
 export function shortDayLabel(date: FestivalDate): { weekday: string; shortDate: string } {
@@ -9,10 +20,13 @@ export function shortDayLabel(date: FestivalDate): { weekday: string; shortDate:
   return { weekday: day?.weekday ?? "", shortDate: day?.shortDate ?? date };
 }
 
-/** "Wed, Nov 11 · Thu, Nov 12", or "All 5 days" when the whole festival is covered. */
-export function formatDays(dates: readonly FestivalDate[]): string {
-  if (dates.length === FESTIVAL_DATES.length) {
-    return "All 5 days";
+/** Labels selected days, or the full festival when every date is selected. */
+export function formatDays(dates: readonly BookingDate[]): string {
+  if (
+    dates.length === FESTIVAL_DATES.length &&
+    FESTIVAL_DATES.every((date) => dates.includes(date))
+  ) {
+    return `All ${EVENT_METADATA.totalDays} days`;
   }
   return dates.map(dayLabel).join(" · ");
 }

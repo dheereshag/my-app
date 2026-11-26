@@ -1,4 +1,5 @@
-import { CircleAlert, CreditCard, Pencil } from "lucide-react";
+import { AlertCircleIcon, CreditCardIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +64,7 @@ export function ReviewStep({ quote, onRetryQuote }: ReviewStepProps) {
             disabled={submitting}
             onClick={() => setStep("group")}
           >
-            <Pencil aria-hidden="true" data-icon="inline-start" />
+            <HugeiconsIcon icon={PencilEdit01Icon} aria-hidden="true" data-icon="inline-start" />
             Edit
           </Button>
         </div>
@@ -87,7 +88,7 @@ export function ReviewStep({ quote, onRetryQuote }: ReviewStepProps) {
       <Card className="bg-white/5 ring-white/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <CreditCard aria-hidden="true" className="size-5" />
+            <HugeiconsIcon icon={CreditCardIcon} aria-hidden="true" className="size-5" />
             <h3 className="font-heading text-2xl font-semibold">Payment</h3>
           </CardTitle>
           <CardDescription className="text-muted-foreground">
@@ -98,7 +99,7 @@ export function ReviewStep({ quote, onRetryQuote }: ReviewStepProps) {
         <CardContent className="flex flex-col gap-4">
           {failure ? (
             <Alert variant="destructive" role="alert">
-              <CircleAlert aria-hidden="true" />
+              <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" />
               <AlertTitle>Your booking was not completed</AlertTitle>
               <AlertDescription>
                 {failure.message}
